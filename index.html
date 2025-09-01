@@ -103,6 +103,9 @@
                 <div>
                     <!-- TAB KẾ HOẠCH -->
                     <div id="content-plan">
+                        <div class="mb-4">
+                            <input type="search" id="search-plan" placeholder="Tìm kiếm trong kế hoạch..." class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        </div>
                         <div id="plan-list-container" class="max-h-[500px] overflow-y-auto">
                             <ul id="plan-list" class="space-y-3"></ul>
                         </div>
@@ -111,8 +114,8 @@
 
                     <!-- TAB LỊCH SỬ -->
                     <div id="content-history" class="hidden">
-                        <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-4">
-                            <h2 class="text-xl font-bold w-full md:w-auto">Tất cả giao dịch</h2>
+                         <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-4">
+                             <input type="search" id="search-history" placeholder="Tìm kiếm trong lịch sử..." class="w-full md:w-1/2 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                             <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                                 <button id="export-xlsx-btn" class="w-full sm:w-auto bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition duration-300 text-sm disabled:bg-gray-400">Xuất Excel</button>
                             </div>
@@ -128,11 +131,15 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div>
                                 <h3 class="text-lg font-semibold text-center mb-2">Cơ Cấu Chi Phí</h3>
-                                <canvas id="expense-pie-chart"></canvas>
+                                <div class="relative h-80 w-full">
+                                    <canvas id="expense-pie-chart"></canvas>
+                                </div>
                             </div>
                             <div>
                                  <h3 class="text-lg font-semibold text-center mb-2">Dòng Tiền Theo Thời Gian</h3>
-                                <canvas id="flow-line-chart"></canvas>
+                                <div class="relative h-80 w-full">
+                                    <canvas id="flow-line-chart"></canvas>
+                                </div>
                             </div>
                          </div>
                     </div>
@@ -184,6 +191,17 @@
                         <input type="date" id="date" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                     </div>
                 </div>
+                <div class="space-y-4 mb-4 border-t pt-4 mt-4">
+                     <h3 class="font-semibold text-gray-700">Thông tin bổ sung (Không bắt buộc)</h3>
+                     <div id="customer-name-field" class="hidden">
+                        <label for="customerName" class="block font-semibold mb-2 text-sm">Tên khách hàng</label>
+                        <input type="text" id="customerName" placeholder="VD: Anh Ba, Chị Tư" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="customerNote" class="block font-semibold mb-2 text-sm">Ghi chú</label>
+                        <textarea id="customerNote" rows="2" placeholder="VD: Giao hàng lúc 12h, không cay..." class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
                 <div class="flex justify-end space-x-3 mt-6">
                     <button type="button" class="cancel-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition">Hủy</button>
                     <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Lưu</button>
@@ -210,7 +228,6 @@
         </div>
     </div>
     
-    <!-- CẢI TIẾN: Modal xác nhận xóa -->
     <div id="confirmation-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
          <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
             <h2 id="confirmation-title" class="text-xl font-bold mb-4">Xác nhận hành động</h2>
@@ -222,7 +239,6 @@
         </div>
     </div>
     
-    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg opacity-0 transform translate-y-10 z-50">
         <p id="toast-message"></p>
     </div>
@@ -241,6 +257,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addPlanBtn = document.getElementById('add-plan-btn');
     const addTransactionBtn = document.getElementById('add-transaction-btn');
     const exportXlsxBtn = document.getElementById('export-xlsx-btn');
+    const searchPlanInput = document.getElementById('search-plan');
+    const searchHistoryInput = document.getElementById('search-history');
     const formModal = document.getElementById('form-modal');
     const modalTitle = document.getElementById('modal-title');
     const mainForm = document.getElementById('main-form');
@@ -250,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateInput = document.getElementById('date');
     const categorySelect = document.getElementById('category');
     const typeRadios = formModal.querySelectorAll('input[name="type"]');
+    const customerNameField = document.getElementById('customer-name-field');
+    const customerNameInput = document.getElementById('customerName');
+    const customerNoteInput = document.getElementById('customerNote');
     const completePlanModal = document.getElementById('complete-plan-modal');
     const completePlanForm = document.getElementById('complete-plan-form');
     const completePlanIdInput = document.getElementById('complete-plan-id');
@@ -324,28 +345,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function listenForData() {
         if (!transactionsCollection || !plansCollection) return;
-
-        transactionsCollection.orderBy("date", "desc").onSnapshot(snapshot => {
-            transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        transactionsCollection.onSnapshot(snapshot => {
+            let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            data.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+            transactions = data;
             renderAll();
             loadingOverlay.style.display = 'none';
         }, err => showError("Không thể tải lịch sử giao dịch: " + err.message));
 
-        plansCollection.orderBy("date", "desc").onSnapshot(snapshot => {
-            plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        plansCollection.onSnapshot(snapshot => {
+            let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            data.sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+            plans = data;
             renderAll();
         }, err => showError("Không thể tải danh sách kế hoạch: " + err.message));
     }
 
     // --- RENDER FUNCTIONS ---
     function renderAll() {
-        const filteredTransactions = filterData(transactions);
-        updateSummary(filteredTransactions);
-        renderTransactionList(filteredTransactions);
-        renderPlanList(plans);
+        const dateFilteredTransactions = filterData(transactions, 'date');
+        const planSearchTerm = searchPlanInput.value;
+        const historySearchTerm = searchHistoryInput.value;
+
+        const searchedPlans = filterData(plans, 'search', planSearchTerm);
+        const searchedTransactions = filterData(dateFilteredTransactions, 'search', historySearchTerm);
+
+        updateSummary(dateFilteredTransactions);
+        renderTransactionList(searchedTransactions);
+        renderPlanList(searchedPlans);
 
         if (!contentDashboard.classList.contains('hidden')) {
-            updateCharts(filteredTransactions);
+            updateCharts(dateFilteredTransactions);
         }
     }
     
@@ -374,18 +405,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ELEMENT CREATION ---
     function createPlanElement(plan) {
-        const { id, type, description, amount, category } = plan;
+        const { id, type, description, amount, category, customerName, customerNote, createdAt, date } = plan;
         const isIncome = type === 'income';
         const item = document.createElement('li');
         item.className = `p-3 rounded-lg flex items-start gap-3 border-l-4 ${isIncome ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`;
+        
+        let extraInfoHtml = '';
+        if ((isIncome && customerName) || customerNote) {
+            extraInfoHtml = `<div class="mt-2 pt-2 border-t border-gray-200 text-sm text-gray-700">
+                ${(isIncome && customerName) ? `<p><strong>KH:</strong> ${customerName}</p>` : ''}
+                ${customerNote ? `<p><strong>Ghi chú:</strong> ${customerNote}</p>` : ''}
+            </div>`;
+        }
+        
+        const displayDateTimeStr = formatDisplayDateTime(createdAt, date);
+
         item.innerHTML = `
             <input type="checkbox" class="plan-item-checkbox mt-1 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
             <div class="flex-grow">
-                <p class="font-bold text-gray-500 text-sm">${category || ''}</p>
-                <p class="font-semibold">${description || ''}</p>
-                <p class="text-sm font-bold ${isIncome ? 'text-green-600' : 'text-red-600'}">${formatCurrency(amount)}</p>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-gray-500 text-sm">${category || ''}</p>
+                        <p class="font-semibold">${description || ''}</p>
+                    </div>
+                    <p class="text-xs text-gray-500 text-right flex-shrink-0 ml-2">${displayDateTimeStr}</p>
+                </div>
+                <p class="text-sm font-bold mt-1 ${isIncome ? 'text-green-600' : 'text-red-600'}">${formatCurrency(amount)}</p>
+                ${extraInfoHtml}
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-col gap-2">
                 <button data-action="edit" class="text-gray-500 hover:text-blue-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
                 <button data-action="delete" class="text-gray-500 hover:text-red-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
             </div>`;
@@ -400,25 +448,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return item;
     }
 
-     function createTransactionElement(tx) {
-        const { id, type, description, amount, date, category } = tx;
+    function createTransactionElement(tx) {
+        const { id, type, description, amount, date, category, customerName, customerNote, createdAt } = tx;
         const isIncome = type === 'income';
         const item = document.createElement('li');
         item.className = `p-4 rounded-lg border-l-4 ${isIncome ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`;
-        const displayDate = date ? new Date(date).toLocaleDateString('vi-VN') : 'Không có ngày';
+        const displayDateTimeStr = formatDisplayDateTime(createdAt, date);
+        
+        let extraInfoHtml = '';
+        if ((isIncome && customerName) || customerNote) {
+            extraInfoHtml = `<div class="mt-2 pt-2 border-t border-gray-200 text-sm text-gray-700">
+                ${(isIncome && customerName) ? `<p><strong>KH:</strong> ${customerName}</p>` : ''}
+                ${customerNote ? `<p><strong>Ghi chú:</strong> ${customerNote}</p>` : ''}
+            </div>`;
+        }
+
         item.innerHTML = `
             <div class="flex justify-between items-start">
-                <div>
-                    <p class="font-bold text-gray-500 text-sm">${category || 'Chưa phân loại'}</p>
+                <div class="flex-grow">
+                     <div class="flex justify-between items-start">
+                        <p class="font-bold text-gray-500 text-sm">${category || 'Chưa phân loại'}</p>
+                        <p class="text-xs text-gray-500 text-right flex-shrink-0 ml-2">${displayDateTimeStr}</p>
+                    </div>
                     <p class="font-semibold text-lg">${description || 'Không có nội dung'}</p>
-                    <p class="text-xs text-gray-500">${displayDate}</p>
+                    ${extraInfoHtml}
                 </div>
                 <div class="text-right flex-shrink-0 ml-4">
                     <p class="font-bold text-xl ${isIncome ? 'text-green-600' : 'text-red-600'}">${isIncome ? '+' : '-'}${formatCurrency(amount)}</p>
-                    <button class="text-xs text-gray-500 hover:text-red-500 transition-colors mt-1" data-id="${id}">Xóa</button>
+                    <div class="flex gap-2 justify-end mt-1">
+                        <button data-action="edit" class="text-gray-500 hover:text-blue-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                        <button data-action="delete" class="text-gray-500 hover:text-red-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
+                    </div>
                 </div>
             </div>`;
-        item.querySelector('button[data-id]').addEventListener('click', () => deleteTransaction(id, description));
+        item.querySelector('button[data-action="edit"]').addEventListener('click', () => openFormModal('editTransaction', tx));
+        item.querySelector('button[data-action="delete"]').addEventListener('click', () => deleteTransaction(id, description));
         return item;
     }
 
@@ -429,24 +493,34 @@ document.addEventListener('DOMContentLoaded', () => {
         dateInput.valueAsDate = new Date();
         editingIdInput.value = data.id || '';
         
+        const type = data.type || 'income';
+        formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
+        
         switch(mode) {
             case 'addPlan':
                 modalTitle.textContent = 'Thêm Kế Hoạch Mới';
                 break;
             case 'editPlan':
-                modalTitle.textContent = 'Chỉnh Sửa Kế Hoạch';
-                descriptionInput.value = data.description;
-                amountInput.value = data.amount;
-                dateInput.value = data.date;
-                formModal.querySelector(`input[name="type"][value="${data.type}"]`).checked = true;
+            case 'editTransaction':
+                modalTitle.textContent = mode === 'editPlan' ? 'Chỉnh Sửa Kế Hoạch' : 'Chỉnh Sửa Giao Dịch';
+                descriptionInput.value = data.description || '';
+                amountInput.value = data.amount || '';
+                dateInput.value = data.date || '';
+                customerNameInput.value = data.customerName || '';
+                customerNoteInput.value = data.customerNote || '';
                 updateCategoryOptions();
-                categorySelect.value = data.category;
+                categorySelect.value = data.category || '';
                 break;
             case 'addTransaction':
                 modalTitle.textContent = 'Thêm Giao Dịch Nhanh';
                 break;
         }
-        if (mode !== 'editPlan') updateCategoryOptions();
+        
+        updateFormFieldsVisibility();
+        if (mode !== 'editPlan' && mode !== 'editTransaction') {
+             updateCategoryOptions();
+        }
+
         formModal.classList.remove('hidden');
         setTimeout(() => formModal.classList.remove('opacity-0'), 10);
     }
@@ -476,7 +550,10 @@ document.addEventListener('DOMContentLoaded', () => {
             description: descriptionInput.value.trim(),
             amount: +amountInput.value,
             date: dateInput.value,
-            category: categorySelect.value
+            category: categorySelect.value,
+            customerName: customerNameInput.value.trim(),
+            customerNote: customerNoteInput.value.trim(),
+            createdAt: new Date().toISOString()
         };
 
         if (!data.description || data.amount <= 0) {
@@ -488,11 +565,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 await plansCollection.add(data);
                 showToast("Đã thêm kế hoạch thành công!");
             } else if (currentFormMode === 'editPlan') {
+                delete data.createdAt; 
                 await plansCollection.doc(editingIdInput.value).update(data);
                 showToast("Đã cập nhật kế hoạch!");
             } else if (currentFormMode === 'addTransaction') {
                 await transactionsCollection.add(data);
                 showToast("Đã thêm giao dịch thành công!");
+            } else if (currentFormMode === 'editTransaction') {
+                delete data.createdAt;
+                await transactionsCollection.doc(editingIdInput.value).update(data);
+                showToast("Đã cập nhật giao dịch!");
             }
             closeFormModal();
         } catch (err) {
@@ -506,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const actualAmount = +completePlanAmountInput.value;
         if (actualAmount <= 0) return showToast("Vui lòng nhập số tiền thực tế hợp lệ.", "error");
         
-        const newTransaction = { ...plan, amount: actualAmount, date: new Date().toISOString().split('T')[0] };
+        const newTransaction = { ...plan, amount: actualAmount, date: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() };
         delete newTransaction.id;
 
         try {
@@ -554,6 +636,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const formatCurrency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
     const showError = (msg) => { console.error(msg); loadingOverlay.innerHTML = `<p class="text-red-500 p-4 text-center">${msg}</p>`; }
     
+    function formatDisplayDateTime(createdAt, date) {
+        const timestamp = createdAt || date;
+        if (!timestamp) return 'Không có ngày';
+        const d = new Date(timestamp);
+        const dateStr = d.toLocaleDateString('vi-VN');
+        const timeStr = d.toLocaleTimeString('vi-VN');
+        return `${dateStr} ${timeStr}`;
+    }
+
     function showToast(message, type = "success") {
         clearTimeout(toastTimeout);
         toastMessage.textContent = message;
@@ -565,37 +656,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
     
+    function updateFormFieldsVisibility() {
+        const selectedType = formModal.querySelector('input[name="type"]:checked').value;
+        customerNameField.classList.toggle('hidden', selectedType !== 'income');
+    }
+
     function updateCategoryOptions() {
         const selectedType = formModal.querySelector('input[name="type"]:checked').value;
         categorySelect.innerHTML = categories[selectedType].map(c => `<option value="${c}">${c}</option>`).join('');
+        updateFormFieldsVisibility();
     }
 
-    function filterData(data) {
-        const range = reportRangeEl.value;
-        if (range === 'all') return data.slice();
-        
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        let start, end = new Date(); end.setHours(23, 59, 59, 999);
-
-        switch(range) {
-            case 'day': start = new Date(today); break;
-            case 'week': start = new Date(today.setDate(today.getDate() - (today.getDay() || 7) + 1)); break;
-            case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1); break;
-            case 'year': start = new Date(today.getFullYear(), 0, 1); break;
-            case 'custom':
-                start = customStartEl.value ? new Date(customStartEl.value) : null;
-                end = customEndEl.value ? new Date(customEndEl.value) : null;
-                if(start) start.setHours(0,0,0,0);
-                if(end) end.setHours(23, 59, 59, 999);
-                break;
-            default: start = end = null;
+    function filterData(data, filterType, searchTerm = '') {
+        if (filterType === 'search') {
+            const term = searchTerm.toLowerCase().trim();
+            if (!term) return data;
+            return data.filter(item =>
+                Object.values(item).some(value =>
+                    String(value).toLowerCase().includes(term)
+                )
+            );
         }
+        
+        if (filterType === 'date') {
+            const range = reportRangeEl.value;
+            if (range === 'all') return data.slice();
+            
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            let start, end = new Date(); end.setHours(23, 59, 59, 999);
 
-        return data.filter(t => {
-            if (!t.date) return false;
-            const d = new Date(t.date);
-            return (!start || d >= start) && (!end || d <= end);
-        });
+            switch(range) {
+                case 'day': start = new Date(today); break;
+                case 'week': start = new Date(today.setDate(today.getDate() - (today.getDay() || 7) + 1)); break;
+                case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1); break;
+                case 'year': start = new Date(today.getFullYear(), 0, 1); break;
+                case 'custom':
+                    start = customStartEl.value ? new Date(customStartEl.value) : null;
+                    end = customEndEl.value ? new Date(customEndEl.value) : null;
+                    if(start) start.setHours(0,0,0,0);
+                    if(end) end.setHours(23, 59, 59, 999);
+                    break;
+                default: start = end = null;
+            }
+
+            return data.filter(t => {
+                if (!t.date) return false;
+                const d = new Date(t.date);
+                return (!start || d >= start) && (!end || d <= end);
+            });
+        }
+        return data;
     }
     
     function switchTab(tab) {
@@ -623,51 +733,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateCharts(source) {
-        if (expensePieChart) expensePieChart.destroy();
-        if (flowLineChart) flowLineChart.destroy();
-        if (!expensePieChartCtx || !flowLineChartCtx) return;
+        // Thuật toán vẽ biểu đồ hiệu quả hơn
+        const expenseLabels = [];
+        const expenseData = [];
+        const lineLabels = [];
+        const incomeData = [];
+        const expenseLineData = [];
 
-        // Pie Chart
+        // Chuẩn bị dữ liệu cho cả hai biểu đồ
         const expenses = source.filter(t => t.type === 'expense');
         if (expenses.length > 0) {
             const expenseByCategory = expenses.reduce((acc, curr) => {
                 acc[curr.category] = (acc[curr.category] || 0) + (curr.amount || 0);
                 return acc;
             }, {});
-            expensePieChart = new Chart(expensePieChartCtx, {
-                type: 'doughnut',
-                data: { labels: Object.keys(expenseByCategory), datasets: [{ data: Object.values(expenseByCategory) }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+            expenseLabels.push(...Object.keys(expenseByCategory));
+            expenseData.push(...Object.values(expenseByCategory));
         }
-
-        // Line Chart
+        
         if (source.length > 0) {
             const dataByDate = source.reduce((acc, curr) => {
                 const date = curr.date.split('T')[0];
                 if (!acc[date]) acc[date] = { income: 0, expense: 0 };
-                acc[date][curr.type] += curr.amount;
+                acc[date][curr.type] += (curr.amount || 0);
                 return acc;
             }, {});
-
             const sortedDates = Object.keys(dataByDate).sort((a,b) => new Date(a) - new Date(b));
-            const labels = sortedDates.map(date => new Date(date).toLocaleDateString('vi-VN'));
-            const incomeData = sortedDates.map(date => dataByDate[date].income);
-            const expenseData = sortedDates.map(date => dataByDate[date].expense);
+            lineLabels.push(...sortedDates.map(date => new Date(date).toLocaleDateString('vi-VN')));
+            incomeData.push(...sortedDates.map(date => dataByDate[date].income));
+            expenseLineData.push(...sortedDates.map(date => dataByDate[date].expense));
+        }
 
+        // Cập nhật hoặc tạo mới Biểu đồ Pie
+        if (!expensePieChart && expensePieChartCtx && expenseLabels.length > 0) {
+            expensePieChart = new Chart(expensePieChartCtx, {
+                type: 'doughnut',
+                data: { labels: expenseLabels, datasets: [{ data: expenseData, backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        } else if (expensePieChart) {
+            expensePieChart.data.labels = expenseLabels;
+            expensePieChart.data.datasets[0].data = expenseData;
+            expensePieChart.update();
+        }
+
+        // Cập nhật hoặc tạo mới Biểu đồ Dòng tiền
+        if (!flowLineChart && flowLineChartCtx && lineLabels.length > 0) {
             flowLineChart = new Chart(flowLineChartCtx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: lineLabels,
                     datasets: [
                         { label: 'Tổng Thu', data: incomeData, borderColor: '#16a34a', backgroundColor: '#16a34a20', fill: true, tension: 0.1 },
-                        { label: 'Tổng Chi', data: expenseData, borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 }
+                        { label: 'Tổng Chi', data: expenseLineData, borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
+        } else if (flowLineChart) {
+            flowLineChart.data.labels = lineLabels;
+            flowLineChart.data.datasets[0].data = incomeData;
+            flowLineChart.data.datasets[1].data = expenseLineData;
+            flowLineChart.update();
         }
     }
+
 
     // --- EVENT LISTENERS ---
     addPlanBtn.addEventListener('click', () => openFormModal('addPlan'));
@@ -692,6 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
     reportRangeEl.addEventListener('change', handleFilterChange);
     customStartEl.addEventListener('change', renderAll);
     customEndEl.addEventListener('change', renderAll);
+    searchPlanInput.addEventListener('input', renderAll);
+    searchHistoryInput.addEventListener('input', renderAll);
 
     // --- INITIAL LOAD ---
     switchTab('plan');
