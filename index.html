@@ -66,7 +66,8 @@
                 <p class="mt-4 text-gray-600 font-semibold">Đang tải dữ liệu của bạn...</p>
             </div>
 
-            <div class="container mx-auto p-4 md:p-6 max-w-7xl pb-28">
+            <!-- SỬA LỖI: Tăng padding-bottom để không bị che nội dung -->
+            <div class="container mx-auto p-4 md:p-6 max-w-7xl pb-64">
                  <header class="flex justify-between items-center mb-6">
                     <div class="text-left">
                         <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Sổ Thu Chi</h1>
@@ -651,11 +652,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const textInput = aiInput.value.trim();
         if (!textInput) { return showToast("Vui lòng nhập mô tả giao dịch.", "error"); }
         aiSpinner.classList.remove('hidden'); e.target.querySelector('button[type="submit"]').disabled = true;
-        const prompt = `You are an expert financial assistant for a small Vietnamese food business. Analyze the following text and extract transaction details. The current date is: ${new Date().toISOString().split('T')[0]}. Available 'income' categories: ${categories.income.join(', ')}. Available 'expense' categories: ${categories.expense.join(', ')}. Select the most appropriate category. If no category fits well, choose 'Chi phí khác' for expenses or 'Thu khác' for income. Extract the description, amount (as a number), the transaction date (in YYYY-MM-DD format), and any extra notes into the 'customerNote' field. Return ONLY the JSON object. User input: "${textInput}"`;
+        
+        // SỬA LỖI: Cải tiến prompt và schema để tăng độ chính xác và sửa lỗi 400
+        const prompt = `Analyze the following Vietnamese text describing a financial transaction for a small business. Extract the key information into a JSON object that strictly follows the provided schema. The current date is ${new Date().toLocaleDateString('en-CA')} for context. Infer dates like "hôm qua" (yesterday), "hôm nay" (today). Determine the 'type' as either 'income' or 'expense'. Select the most appropriate 'category' from the provided enum list. Combine any extra details into 'customerNote'. User's text: "${textInput}"`;
         try {
             const apiKey = "YOUR_API_KEY_HERE"; // NHỚ DÁN API KEY CỦA BẠN VÀO ĐÂY
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { "type": { "type": "STRING", "enum": ["income", "expense"] }, "description": { "type": "STRING" }, "amount": { "type": "NUMBER" }, "category": { "type": "STRING" }, "date": { "type": "STRING" }, "customerNote": { "type": "STRING" } }, required: ["type", "description", "amount", "date"] } } };
+            const payload = { 
+                contents: [{ parts: [{ text: prompt }] }], 
+                generationConfig: { 
+                    responseMimeType: "application/json", 
+                    responseSchema: { 
+                        type: "OBJECT", 
+                        properties: { 
+                            "type": { "type": "STRING", "enum": ["income", "expense"] }, 
+                            "description": { "type": "STRING" }, 
+                            "amount": { "type": "NUMBER" }, 
+                            "category": { "type": "STRING", "enum": [...categories.income, ...categories.expense] }, 
+                            "date": { "type": "STRING" }, 
+                            "customerNote": { "type": "STRING" } 
+                        }, 
+                        required: ["type", "description", "amount", "category", "date"] 
+                    } 
+                } 
+            };
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) { throw new Error(`API call failed with status: ${response.status}`); }
             const result = await response.json();
@@ -692,3 +712,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
