@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sổ Thu Chi (với Trợ lý AI)</title>
+    <title>Sổ Thu Chi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -66,8 +66,7 @@
                 <p class="mt-4 text-gray-600 font-semibold">Đang tải dữ liệu của bạn...</p>
             </div>
 
-            <!-- SỬA LỖI: Tăng padding-bottom để không bị che nội dung -->
-            <div class="container mx-auto p-4 md:p-6 max-w-7xl pb-64">
+            <div class="container mx-auto p-4 md:p-6 max-w-7xl pb-28">
                  <header class="flex justify-between items-center mb-6">
                     <div class="text-left">
                         <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Sổ Thu Chi</h1>
@@ -173,9 +172,6 @@
 
             <!-- Floating Action Buttons -->
             <div class="fixed bottom-6 right-6 flex flex-col items-center gap-4 z-40">
-                <button id="add-ai-btn" title="Nhập liệu nhanh với AI" class="w-14 h-14 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-purple-700 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0m-8.485 2.828l.707.707M15 21v-1m-4.5 0h3" /></svg>
-                </button>
                 <button id="add-transaction-btn" title="Ghi Giao Dịch Nhanh" class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.158-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-.567-.267z" /><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.5 4.5 0 00-1.879 3.487c.03.021.059.042.088.063a1 1 0 001.246-1.555A2.5 2.5 0 0110 8.5v1.445a1 1 0 102 0V9.945a2.5 2.5 0 011.026-1.953c.125-.09.264-.171.413-.243a1 1 0 10-.83-1.843A4.502 4.502 0 0011 5.092V5zM12 12a2 2 0 10-4 0 2 2 0 004 0z" clip-rule="evenodd" /></svg>
                 </button>
@@ -186,7 +182,7 @@
             
              <!-- MODALs -->
             <div id="form-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-                <div class="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-lg transform transition-transform duration-300 scale-95 max-h-[90vh] overflow-y-auto">
+                 <div class="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-lg transform transition-transform duration-300 scale-95 max-h-[90vh] overflow-y-auto">
                     <h2 id="modal-title" class="text-2xl font-bold mb-4"></h2>
                     <form id="main-form">
                         <input type="hidden" id="editing-id">
@@ -262,20 +258,6 @@
                     </div>
                 </div>
             </div>
-             <div id="ai-entry-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-                 <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-                    <h2 class="text-2xl font-bold mb-4 text-purple-700">✨ Nhập Liệu Nhanh với AI</h2>
-                    <p class="text-gray-600 mb-4">Mô tả giao dịch của bạn bằng ngôn ngữ tự nhiên. Ví dụ: "Hôm qua chi 150k mua rau củ".</p>
-                    <form id="ai-entry-form">
-                        <textarea id="ai-input" rows="3" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Nhập mô tả của bạn ở đây..."></textarea>
-                        <div class="flex justify-end items-center space-x-3 mt-6">
-                            <div id="ai-spinner" class="spinner hidden"></div>
-                            <button type="button" class="cancel-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition">Hủy</button>
-                            <button type="submit" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition">Phân tích & Nhập liệu</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
             <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-white shadow-lg opacity-0 transform translate-y-10 z-50">
                 <p id="toast-message"></p>
             </div>
@@ -339,11 +321,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const customEndEl = document.getElementById('custom-end');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
-    const addAiBtn = document.getElementById('add-ai-btn');
-    const aiEntryModal = document.getElementById('ai-entry-modal');
-    const aiEntryForm = document.getElementById('ai-entry-form');
-    const aiInput = document.getElementById('ai-input');
-    const aiSpinner = document.getElementById('ai-spinner');
     
     let auth, db;
     let transactionsCollection, plansCollection;
@@ -363,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Firebase Initialization & Auth Handling ---
     try {
         const firebaseConfig = {
-            apiKey: "AIzaSyCb6WTOOMERzf_tu7SahPAhU21y6AyFMCc",
+            apiKey: "AIzaSyBkgzeseW1hFbiEiHrK6kXtMgdFE4gdUSI",
             authDomain: "sothuchiapp-5efc7.firebaseapp.com",
             projectId: "sothuchiapp-5efc7",
             storageBucket: "sothuchiapp-5efc7.appspot.com",
@@ -411,6 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginBtn.addEventListener('click', signInWithGoogle);
     logoutBtn.addEventListener('click', signOut);
 
+    // --- Data Listener ---
     function listenForData() {
         if (!transactionsCollection || !plansCollection) return;
         
@@ -430,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, err => showError("Không thể tải danh sách kế hoạch: " + err.message));
     }
     
+    // --- Render Functions ---
     function renderAll() {
         const dateFilteredTransactions = filterData(transactions, 'date');
         const planSearchTerm = searchPlanInput.value;
@@ -529,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.querySelector('button[data-action="delete"]').addEventListener('click', () => deleteTransaction(id, description));
         return item;
     }
+
     function openFormModal(mode, data = {}) {
         currentFormMode = mode;
         mainForm.reset();
@@ -600,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deletePlan = (id, description) => { openConfirmationModal(`Bạn có chắc muốn xóa kế hoạch "${description}"?`, async () => { try { await plansCollection.doc(id).delete(); showToast("Đã xóa kế hoạch."); } catch(e) { showToast('Lỗi: '+e.message, "error"); } }); };
     const deleteTransaction = (id, description) => { openConfirmationModal(`Bạn có chắc muốn xóa giao dịch "${description}"?`, async () => { try { await transactionsCollection.doc(id).delete(); showToast("Đã xóa giao dịch."); } catch(e) { showToast('Lỗi: '+e.message, "error"); } }); };
     const formatCurrency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
-    const showError = (msg) => { console.error(msg); loadingOverlay.innerHTML = `<p class="text-red-500 p-4 text-center">${msg}</p>`; };
+    const showError = (msg) => { console.error(msg); loadingOverlay.innerHTML = `<p class="text-red-500 text-center">${msg}</p>`; };
     function formatDisplayDateTime(createdAt, date) { const timestamp = createdAt || date; if (!timestamp) return 'Không có ngày'; const d = new Date(timestamp); const dateStr = d.toLocaleDateString('vi-VN'); const timeStr = d.toLocaleTimeString('vi-VN'); return `${dateStr} ${timeStr}`; }
     function showToast(message, type = "success") { clearTimeout(toastTimeout); toastMessage.textContent = message; toast.className = toast.className.replace(/bg-\w+-500/, ''); toast.classList.add(type === "success" ? "bg-green-500" : "bg-red-500"); toast.classList.remove("opacity-0", "translate-y-10"); toastTimeout = setTimeout(() => { toast.classList.add("opacity-0", "translate-y-10"); }, 3000); }
     function updateFormFieldsVisibility() { const selectedType = formModal.querySelector('input[name="type"]:checked').value; customerNameField.classList.toggle('hidden', selectedType !== 'income'); }
@@ -633,61 +613,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const sorted = [...source].sort((a,b)=> new Date(a.date)-new Date(b.date));
         const totalIncome = sorted.filter(t=>t.type==='income').reduce((s,t)=>s+(t.amount||0),0);
         const totalExpense = sorted.filter(t=>t.type==='expense').reduce((s,t)=>s+(t.amount||0),0);
-        const summaryData = [["BÁO CÁO TỔNG QUAN"], [],["Khoản mục", "Số tiền"],["Tổng Thu", totalIncome],["Tổng Chi", totalExpense],["Lợi Nhuận", totalIncome-totalExpense]];
-        const ws_summary = XLSX.utils.aoa_to_sheet(summaryData); ws_summary['!cols'] = [{wch: 25}, {wch: 20}];
+        const summaryData = [
+            ["BÁO CÁO TỔNG QUAN"], [],
+            ["Khoản mục", "Số tiền"],
+            ["Tổng Thu", totalIncome],
+            ["Tổng Chi", totalExpense],
+            ["Lợi Nhuận", totalIncome-totalExpense]
+        ];
+        const ws_summary = XLSX.utils.aoa_to_sheet(summaryData);
+        ws_summary['!cols'] = [{wch: 25}, {wch: 20}];
         const header = ['Ngày', 'Loại', 'Nội dung', 'Số tiền', 'Danh mục', 'Tên khách hàng', 'Ghi chú'];
-        const dataRows = sorted.map(t => ({ 'Ngày': new Date(t.createdAt || t.date), 'Loại': t.type === 'income' ? 'Thu' : 'Chi', 'Nội dung': t.description, 'Số tiền': t.type === 'income' ? t.amount : -t.amount, 'Danh mục': t.category, 'Tên khách hàng': t.customerName || '', 'Ghi chú': t.customerNote || '' }));
-        const ws_details = XLSX.utils.json_to_sheet(dataRows, {header: header}); ws_details['!cols'] = [{wch:20},{wch:8},{wch:30},{wch:18},{wch:20},{wch:20},{wch:30}];
-        const totalRowNum = dataRows.length + 2; ws_details[`C${totalRowNum}`] = {t:'s', v:'LỢI NHUẬN TỔNG CỘNG:'}; ws_details[`D${totalRowNum}`] = {t:'n', f:`SUM(D2:D${totalRowNum-1})`, z: '#,##0 "₫"'};
-        for(let i = 2; i <= totalRowNum; i++) { if(ws_details[`D${i}`]) ws_details[`D${i}`].z = '#,##0 "₫"'; }
+        const dataRows = sorted.map(t => ({
+            'Ngày': new Date(t.createdAt || t.date),
+            'Loại': t.type === 'income' ? 'Thu' : 'Chi',
+            'Nội dung': t.description,
+            'Số tiền': t.type === 'income' ? t.amount : -t.amount,
+            'Danh mục': t.category,
+            'Tên khách hàng': t.customerName || '',
+            'Ghi chú': t.customerNote || ''
+        }));
+        const ws_details = XLSX.utils.json_to_sheet(dataRows, {header: header});
+        ws_details['!cols'] = [{wch:20},{wch:8},{wch:30},{wch:18},{wch:20},{wch:20},{wch:30}];
+        const totalRowNum = dataRows.length + 2;
+        ws_details[`C${totalRowNum}`] = {t:'s', v:'LỢI NHUẬN TỔNG CỘNG:'};
+        ws_details[`D${totalRowNum}`] = {t:'n', f:`SUM(D2:D${totalRowNum-1})`, z: '#,##0 "₫"'};
+        for(let i = 2; i <= totalRowNum; i++) {
+            if(ws_details[`D${i}`]) ws_details[`D${i}`].z = '#,##0 "₫"';
+        }
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws_summary, "BaoCaoTongQuan");
         XLSX.utils.book_append_sheet(wb, ws_details, "GiaoDichChiTiet");
         XLSX.writeFile(wb, `SoThuChi_BaoCao_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
-    const openAiEntryModal = () => { aiInput.value = ''; aiEntryModal.classList.remove('hidden'); setTimeout(() => aiEntryModal.classList.remove('opacity-0'), 10); };
-    const closeAiEntryModal = () => { aiEntryModal.classList.add('opacity-0'); setTimeout(() => aiEntryModal.classList.add('hidden'), 300); };
-    const handleAiEntry = async (e) => {
-        e.preventDefault();
-        const textInput = aiInput.value.trim();
-        if (!textInput) { return showToast("Vui lòng nhập mô tả giao dịch.", "error"); }
-        aiSpinner.classList.remove('hidden'); e.target.querySelector('button[type="submit"]').disabled = true;
-        
-        // SỬA LỖI: Cải tiến prompt và schema để tăng độ chính xác và sửa lỗi 400
-        const prompt = `Analyze the following Vietnamese text describing a financial transaction for a small business. Extract the key information into a JSON object that strictly follows the provided schema. The current date is ${new Date().toLocaleDateString('en-CA')} for context. Infer dates like "hôm qua" (yesterday), "hôm nay" (today). Determine the 'type' as either 'income' or 'expense'. Select the most appropriate 'category' from the provided enum list. Combine any extra details into 'customerNote'. User's text: "${textInput}"`;
-        try {
-            const apiKey = "YOUR_API_KEY_HERE"; // NHỚ DÁN API KEY CỦA BẠN VÀO ĐÂY
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const payload = { 
-                contents: [{ parts: [{ text: prompt }] }], 
-                generationConfig: { 
-                    responseMimeType: "application/json", 
-                    responseSchema: { 
-                        type: "OBJECT", 
-                        properties: { 
-                            "type": { "type": "STRING", "enum": ["income", "expense"] }, 
-                            "description": { "type": "STRING" }, 
-                            "amount": { "type": "NUMBER" }, 
-                            "category": { "type": "STRING", "enum": [...categories.income, ...categories.expense] }, 
-                            "date": { "type": "STRING" }, 
-                            "customerNote": { "type": "STRING" } 
-                        }, 
-                        required: ["type", "description", "amount", "category", "date"] 
-                    } 
-                } 
-            };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) { throw new Error(`API call failed with status: ${response.status}`); }
-            const result = await response.json();
-            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (jsonText) { const parsedData = JSON.parse(jsonText); closeAiEntryModal(); openFormModal('addTransaction', parsedData); } else { throw new Error("AI did not return valid data."); }
-        } catch (error) { console.error('Error with AI entry:', error); showToast(`AI không thể xử lý yêu cầu: ${error.message}`, "error"); } finally { aiSpinner.classList.add('hidden'); e.target.querySelector('button[type="submit"]').disabled = false; }
-    };
     addPlanBtn.addEventListener('click', () => openFormModal('addPlan'));
     addTransactionBtn.addEventListener('click', () => openFormModal('addTransaction'));
-    addAiBtn.addEventListener('click', openAiEntryModal);
-    aiEntryModal.querySelector('.cancel-btn').addEventListener('click', closeAiEntryModal);
-    aiEntryForm.addEventListener('submit', handleAiEntry);
     mainForm.addEventListener('submit', handleFormSubmit);
     completePlanForm.addEventListener('submit', handleCompletePlanSubmit);
     formModal.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', closeFormModal));
