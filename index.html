@@ -1114,19 +1114,38 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.querySelector('button[type="submit"]').disabled = true;
 
         const productNames = products.map(p => p.name);
-        const prompt = `You are an intelligent assistant for a Vietnamese finance app. Analyze the user's text to extract transaction details into a structured JSON object.
-- Context: The user is recording a business transaction in Vietnamese. The current date is ${new Date().toLocaleDateString('en-CA')}.
-- Available Products: [${productNames.join(', ')}].
-- Task: Extract the following fields from the user's text.
-  1.  **entryType**: "plan" for future intent (e.g., "ngày mai", "sẽ bán"), otherwise "transaction".
-  2.  **productName**: Find the closest match from the 'Available Products' list.
-  3.  **quantity**: Extract the quantity. A number immediately before a product name is almost always the quantity. Default to 1 if not specified.
-  4.  **discountPercentage**: Extract any percentage discount (e.g., "chiết khấu 15%" -> 15).
-  5.  **type**: "income" for sales ('bán', 'thu'), or "expense" for purchases ('mua', 'nhập').
-  6.  **customerName**: Extract the customer's name (e.g., "chị Hà", "anh Ba").
-  7.  **customerNote**: Extract any additional notes (e.g., "giao 15h chiều").
-- IMPORTANT: Do NOT include an 'amount' field in your JSON response. The application will calculate it.
-- User's text: "${textInput}"`;
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+        const prompt = `You are an expert Vietnamese financial assistant. Your task is to extract detailed information from a user's text and format it into a JSON object.
+
+CONTEXT:
+- The current date is: ${todayStr}.
+- Available product names for matching: [${productNames.join(', ')}].
+
+RULES & EXAMPLES:
+1.  **entryType**: MUST be "plan" for future intent, otherwise "transaction".
+    - "ngày mai bán", "2 ngày nữa giao" -> "plan"
+    - "bán hôm qua", "thu tiền" -> "transaction"
+2.  **date**: MUST determine the exact date based on the current date and return it in YYYY-MM-DD format.
+    - "hôm nay" -> ${todayStr}
+    - "ngày mai" -> (Calculate tomorrow's date)
+    - "2 ngày nữa" -> (Calculate date in 2 days)
+    - If no date is mentioned, use today's date: ${todayStr}.
+3.  **productName**: MUST find the closest product name from the 'Available Products' list.
+4.  **quantity**: MUST extract the quantity. The number just before the productName is the quantity.
+    - "bán 10 ly kem" -> 10
+    - "2 trà đá" -> 2
+    - Default to 1 if not specified.
+5.  **customerName**: MUST extract the customer's name.
+    - "giao cho chị Nhung" -> "chị Nhung"
+6.  **customerNote**: MUST extract all other relevant details like time, location, or special requests.
+    - "giao 16h tại nhà khách" -> "Giao 16h tại nhà khách"
+7.  **discountPercentage**: MUST extract any percentage discount.
+    - "chiết khấu 15%" -> 15
+8.  **type**: MUST be "income" for sales ('bán', 'thu'), "expense" for purchases ('mua', 'nhập').
+
+IMPORTANT: Do NOT include an 'amount' in the JSON. The app will calculate it.
+
+USER TEXT: "${textInput}"`;
 
         try {
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
@@ -1137,14 +1156,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     responseSchema: { 
                         type: "OBJECT", 
                         properties: { 
-                            "entryType": { "type": "STRING", "enum": ["plan", "transaction"] },
-                            "type": { "type": "STRING", "enum": ["income", "expense"] }, 
+                            "entryType": { "type": "STRING" },
+                            "date": { "type": "STRING", "format": "date" },
                             "productName": { "type": "STRING", "enum": productNames },
                             "quantity": { "type": "NUMBER" },
                             "discountPercentage": { "type": "NUMBER" },
                             "customerName": { "type": "STRING" },
-                            "customerNote": { "type": "STRING" }
+                            "customerNote": { "type": "STRING" },
+                            "type": { "type": "STRING" }
                         },
+                         "required": ["entryType", "date", "type"]
                     } 
                 } 
             };
