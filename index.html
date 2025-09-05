@@ -333,7 +333,7 @@
                              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label for="product-cost-price" class="block font-semibold mb-2">Giá vốn</label>
-                                    <input type="number" id="product-cost-price" placeholder="Giá nhập hàng" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <input type="number" id="product-cost-price" placeholder="Giá nhập hàng" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 <div>
                                      <label for="product-selling-price" class="block font-semibold mb-2">Giá bán</label>
@@ -468,6 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const completePlanDescriptionEl = document.getElementById('complete-plan-description');
     const completePlanAmountInput = document.getElementById('complete-plan-amount');
     const confirmationModal = document.getElementById('confirmation-modal');
+    const confirmationTitle = document.getElementById('confirmation-title');
     const confirmationMessage = document.getElementById('confirmation-message');
     const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
     const confirmActionBtn = document.getElementById('confirm-action-btn');
@@ -752,6 +753,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function openFormModal(mode, data = {}) {
         currentFormMode = mode;
         mainForm.reset();
+        descriptionInput.readOnly = false;
+        productSelect.value = '';
+
         const type = data.type || 'income';
         formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
         updateCategoryOptions();
@@ -767,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 categorySelect.value = data.category || (type === 'income' ? 'Bán hàng' : '');
                 customerNameInput.value = data.customerName || '';
                 customerNoteInput.value = data.customerNote || '';
+                transactionQuantityInput.value = data.quantity || 1;
                 break;
             case 'editPlan':
             case 'editTransaction':
@@ -778,6 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 categorySelect.value = data.category || '';
                 customerNameInput.value = data.customerName || '';
                 customerNoteInput.value = data.customerNote || '';
+                transactionQuantityInput.value = data.quantity || 1;
                 break;
         }
 
@@ -818,23 +824,39 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const data = {
             name: productNameInput.value.trim(),
-            costPrice: +productCostPriceInput.value,
+            costPrice: +productCostPriceInput.value || 0,
             sellingPrice: +productSellingPriceInput.value,
             stock: +productStockInput.value,
         };
-        if (!data.name || data.sellingPrice <= 0) { return showToast("Vui lòng nhập tên và giá bán hợp lệ.", "error"); }
+        if (!data.name || data.sellingPrice <= 0) { 
+            return showToast("Vui lòng nhập tên và giá bán hợp lệ.", "error"); 
+        }
         
-        const editingId = editingProductIdInput.value;
-        try {
-            if (editingId) {
-                await productsCollection.doc(editingId).update(data);
-                showToast("Đã cập nhật sản phẩm!");
-            } else {
-                await productsCollection.add(data);
-                showToast("Đã thêm sản phẩm thành công!");
+        const saveProduct = async () => {
+            const editingId = editingProductIdInput.value;
+            try {
+                if (editingId) {
+                    await productsCollection.doc(editingId).update(data);
+                    showToast("Đã cập nhật sản phẩm!");
+                } else {
+                    await productsCollection.add(data);
+                    showToast("Đã thêm sản phẩm thành công!");
+                }
+                closeProductModal();
+            } catch (err) { 
+                showToast(`Lỗi: ${err.message}`, "error"); 
             }
-            closeProductModal();
-        } catch (err) { showToast(`Lỗi: ${err.message}`, "error"); }
+        };
+
+        if (data.costPrice <= 0) {
+            openConfirmationModal(
+                "Giá vốn đang bị bỏ trống hoặc bằng 0. Bạn có chắc muốn lưu không?",
+                saveProduct,
+                "Vẫn lưu"
+            );
+        } else {
+            saveProduct();
+        }
     }
 
 
@@ -856,40 +878,58 @@ document.addEventListener('DOMContentLoaded', () => {
             productId: type === 'income' && productId ? productId : null,
             quantity: type === 'income' && productId ? quantity : null
         };
-        if (!data.description || data.amount <= 0) { return showToast("Vui lòng nhập nội dung và số tiền hợp lệ.", "error"); }
+        if (!data.description || data.amount < 0) { return showToast("Vui lòng nhập nội dung và số tiền hợp lệ.", "error"); }
         
-        try {
-            if (currentFormMode.includes('add')) { // Add Transaction or Plan
-                if (currentFormMode === 'addPlan') { 
-                    await plansCollection.add(data); 
-                    showToast("Đã thêm kế hoạch thành công!");
-                } else { // addTransaction
-                    await transactionsCollection.add(data);
-                    // Update stock if a product was sold
-                    if (data.productId && data.quantity > 0) {
-                        const productRef = productsCollection.doc(data.productId);
-                        await db.runTransaction(async (transaction) => {
-                            const productDoc = await transaction.get(productRef);
-                            if (!productDoc.exists) { throw "Sản phẩm không tồn tại."; }
-                            const newStock = productDoc.data().stock - data.quantity;
-                            transaction.update(productRef, { stock: newStock });
-                        });
+        const executeSave = async () => {
+            try {
+                if (currentFormMode.includes('add')) {
+                    if (currentFormMode === 'addPlan') { 
+                        await plansCollection.add(data); 
+                        showToast("Đã thêm kế hoạch thành công!");
+                    } else { // addTransaction
+                        await transactionsCollection.add(data);
+                        if (data.productId && data.quantity > 0) {
+                            const productRef = productsCollection.doc(data.productId);
+                            await db.runTransaction(async (transaction) => {
+                                const productDoc = await transaction.get(productRef);
+                                if (!productDoc.exists) { throw "Sản phẩm không tồn tại."; }
+                                const newStock = productDoc.data().stock - data.quantity;
+                                transaction.update(productRef, { stock: newStock });
+                            });
+                        }
+                        showToast("Đã thêm giao dịch thành công!"); 
                     }
-                    showToast("Đã thêm giao dịch thành công!"); 
+                } else { // Edit mode
+                    delete data.createdAt;
+                     if (currentFormMode === 'editPlan') { 
+                        await plansCollection.doc(editingIdInput.value).update(data); 
+                        showToast("Đã cập nhật kế hoạch!"); 
+                    } else { // editTransaction
+                        // Note: Reverting stock on edit is complex and not implemented.
+                        await transactionsCollection.doc(editingIdInput.value).update(data); 
+                        showToast("Đã cập nhật giao dịch!");
+                    }
                 }
-            } else { // Edit Transaction or Plan
-                delete data.createdAt; // Prevent createdAt from being overwritten
-                 if (currentFormMode === 'editPlan') { 
-                    await plansCollection.doc(editingIdInput.value).update(data); 
-                    showToast("Đã cập nhật kế hoạch!"); 
-                } else { // editTransaction
-                    // Note: Editing transactions with products does not yet revert stock. This is a future improvement.
-                    await transactionsCollection.doc(editingIdInput.value).update(data); 
-                    showToast("Đã cập nhật giao dịch!");
-                }
+                closeFormModal();
+            } catch (err) { 
+                showToast(`Lỗi: ${err.message}`, "error"); 
             }
-            closeFormModal();
-        } catch (err) { showToast(`Lỗi: ${err.message}`, "error"); }
+        };
+        
+        if (currentFormMode === 'addTransaction' && data.productId && data.quantity > 0) {
+            const product = products.find(p => p.id === data.productId);
+            if (product && data.quantity > product.stock) {
+                openConfirmationModal(
+                    `Số lượng bán (${data.quantity}) vượt quá tồn kho (${product.stock}). Bạn có chắc muốn tiếp tục?`,
+                    executeSave,
+                    "Tiếp tục"
+                );
+            } else {
+                await executeSave();
+            }
+        } else {
+            await executeSave();
+        }
     }
 
     const deleteProduct = (id, name) => { 
@@ -907,12 +947,10 @@ document.addEventListener('DOMContentLoaded', () => {
         openConfirmationModal(`Bạn có chắc muốn xóa giao dịch "${tx.description}"?`, async () => { 
             try { 
                 await transactionsCollection.doc(tx.id).delete();
-                // If the deleted transaction was a product sale, revert the stock
                 if (tx.productId && tx.quantity > 0) {
                     const productRef = productsCollection.doc(tx.productId);
                      await db.runTransaction(async (transaction) => {
                         const productDoc = await transaction.get(productRef);
-                        // If product still exists, add stock back
                         if (productDoc.exists) {
                             const newStock = productDoc.data().stock + tx.quantity;
                             transaction.update(productRef, { stock: newStock });
@@ -925,7 +963,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } 
         }); 
     };
-
 
     function openCompletePlanModal(plan) {
         completePlanIdInput.value = JSON.stringify(plan);
@@ -949,9 +986,17 @@ document.addEventListener('DOMContentLoaded', () => {
             closeCompletePlanModal();
         } catch (err) { showToast(`Lỗi: ${err.message}`, "error"); }
     }
-    function openConfirmationModal(message, onConfirm) {
+    
+    function openConfirmationModal(message, onConfirm, confirmText = "Xóa") {
         confirmationMessage.textContent = message;
         confirmAction = onConfirm;
+        confirmActionBtn.textContent = confirmText;
+        confirmActionBtn.className = 'font-bold py-2 px-4 rounded-lg transition text-white ';
+        if (confirmText === "Xóa") {
+            confirmActionBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+        } else {
+            confirmActionBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
         confirmationModal.classList.remove('hidden');
         setTimeout(() => confirmationModal.classList.remove('opacity-0'), 10);
     }
@@ -1002,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedType = formModal.querySelector('input[name="type"]:checked').value; 
         customerNameField.classList.toggle('hidden', selectedType !== 'income'); 
         
-        // Show product section for income transactions
         if (selectedType === 'income') {
             productSection.classList.remove('hidden');
             populateProductDropdown();
@@ -1065,15 +1109,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const textInput = aiInput.value.trim();
         if (!textInput) { return showToast("Vui lòng nhập mô tả.", "error"); }
         if (geminiApiKey === "YOUR_GEMINI_API_KEY_HERE") { return showToast("Lỗi: API Key của Gemini chưa được thiết lập.", "error"); }
-        aiSpinner.classList.remove('hidden'); e.target.querySelector('button[type="submit"]').disabled = true;
-        const prompt = `You are an intelligent assistant for a Vietnamese finance app. Your task is to analyze the user's text and determine if it's a "plan" (a future intention) or a "transaction" (a past or present event).
-- Use keywords like "sẽ", "dự định", "kế hoạch", "dự kiến", "ngày mai", "tuần sau" to identify a "plan".
-- If no future keywords are present, assume it is a "transaction".
-- Set the 'entryType' field to "plan" or "transaction" accordingly.
-Then, extract the other details into the JSON object. The current date is ${new Date().toLocaleDateString('en-CA')}.
-Available 'income' categories: ${categories.income.join(', ')}.
-Available 'expense' categories: ${categories.expense.join(', ')}.
-User's text: "${textInput}"`;
+        
+        aiSpinner.classList.remove('hidden'); 
+        e.target.querySelector('button[type="submit"]').disabled = true;
+
+        const productNames = products.map(p => p.name);
+        const prompt = `You are an intelligent assistant for a Vietnamese finance app. Analyze the user's text to extract transaction details.
+- Context: The user is recording a business transaction.
+- Available Products: [${productNames.join(', ')}].
+- Task:
+  1.  Determine if it's a "plan" (future) or "transaction" (past/present).
+  2.  Identify the product name by finding the closest match from the 'Available Products' list.
+  3.  Extract the quantity. Default to 1 if not specified.
+  4.  Extract any percentage discount (e.g., "chiết khấu 30%" means 30).
+  5.  Extract the total amount if explicitly mentioned.
+  6.  Set type to 'income' for sales, 'expense' for purchases.
+- User's text: "${textInput}"`;
+
         try {
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
             const payload = { 
@@ -1086,13 +1138,12 @@ User's text: "${textInput}"`;
                             "entryType": { "type": "STRING", "enum": ["plan", "transaction"] },
                             "type": { "type": "STRING", "enum": ["income", "expense"] }, 
                             "description": { "type": "STRING" }, 
-                            "amount": { "type": "NUMBER" }, 
-                            "category": { "type": "STRING", "enum": [...categories.income, ...categories.expense] }, 
-                            "date": { "type": "STRING" }, 
-                            "customerName": { "type": "STRING" }, 
-                            "customerNote": { "type": "STRING" } 
-                        }, 
-                        required: ["entryType", "type", "description", "amount", "date"] 
+                            "amount": { "type": "NUMBER" },
+                            "category": { "type": "STRING" }, 
+                            "productName": { "type": "STRING", "enum": productNames },
+                            "quantity": { "type": "NUMBER" },
+                            "discountPercentage": { "type": "NUMBER" }
+                        },
                     } 
                 } 
             };
@@ -1100,8 +1151,25 @@ User's text: "${textInput}"`;
             if (!response.ok) { throw new Error(`API call failed with status: ${response.status}`); }
             const result = await response.json();
             const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
             if (jsonText) {
                 const parsedData = JSON.parse(jsonText);
+                
+                // Post-process AI response
+                if (parsedData.productName) {
+                    const product = products.find(p => p.name === parsedData.productName);
+                    if (product) {
+                        parsedData.productId = product.id;
+                        const quantity = parsedData.quantity || 1;
+                        let finalAmount = product.sellingPrice * quantity;
+                        if (parsedData.discountPercentage > 0) {
+                            finalAmount *= (1 - parsedData.discountPercentage / 100);
+                        }
+                        parsedData.amount = finalAmount;
+                        parsedData.description = parsedData.description || `${quantity} ${product.name}`;
+                    }
+                }
+                
                 closeAiEntryModal();
                 if (parsedData.entryType === 'plan') {
                     openFormModal('addPlan', parsedData);
