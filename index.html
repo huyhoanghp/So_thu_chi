@@ -1115,15 +1115,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const productNames = products.map(p => p.name);
         const prompt = `You are an intelligent assistant for a Vietnamese finance app. Analyze the user's text to extract transaction details.
-- Context: The user is recording a business transaction.
+- Context: The user is recording a business transaction in Vietnamese.
 - Available Products: [${productNames.join(', ')}].
 - Task:
-  1.  Determine if it's a "plan" (future) or "transaction" (past/present).
-  2.  Identify the product name by finding the closest match from the 'Available Products' list.
-  3.  Extract the quantity. Default to 1 if not specified.
-  4.  Extract any percentage discount (e.g., "chiết khấu 30%" means 30).
-  5.  Extract the total amount if explicitly mentioned.
-  6.  Set type to 'income' for sales, 'expense' for purchases.
+  1.  **Entry Type**: Determine if it's a "plan" (future intent, e.g., "sẽ bán") or "transaction" (past/present event, e.g., "đã bán", "bán").
+  2.  **Product Name**: Identify the product by finding the closest match from the 'Available Products' list. This is a critical step.
+  3.  **Quantity**: Extract the quantity. A number immediately before a product name is almost always the quantity. If no quantity is specified, default to 1. For example, in "bán 7 kem chuối", the quantity is 7.
+  4.  **Discount**: Extract any percentage discount (e.g., "chiết khấu 30%" means discountPercentage is 30).
+  5.  **Transaction Type**: Set 'type' to 'income' for sales ('bán', 'thu'), or 'expense' for purchases ('mua', 'nhập').
+  6.  **Description**: Generate a brief description from the user's text.
+- IMPORTANT: Do NOT include an 'amount' field in your JSON response. The application will calculate it.
 - User's text: "${textInput}"`;
 
         try {
@@ -1138,7 +1139,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             "entryType": { "type": "STRING", "enum": ["plan", "transaction"] },
                             "type": { "type": "STRING", "enum": ["income", "expense"] }, 
                             "description": { "type": "STRING" }, 
-                            "amount": { "type": "NUMBER" },
                             "category": { "type": "STRING" }, 
                             "productName": { "type": "STRING", "enum": productNames },
                             "quantity": { "type": "NUMBER" },
@@ -1161,6 +1161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (product) {
                         parsedData.productId = product.id;
                         const quantity = parsedData.quantity || 1;
+                        parsedData.quantity = quantity; // Ensure quantity is set for the form
                         let finalAmount = product.sellingPrice * quantity;
                         if (parsedData.discountPercentage > 0) {
                             finalAmount *= (1 - parsedData.discountPercentage / 100);
