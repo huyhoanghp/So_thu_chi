@@ -1114,16 +1114,17 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.querySelector('button[type="submit"]').disabled = true;
 
         const productNames = products.map(p => p.name);
-        const prompt = `You are an intelligent assistant for a Vietnamese finance app. Analyze the user's text to extract transaction details.
-- Context: The user is recording a business transaction in Vietnamese.
+        const prompt = `You are an intelligent assistant for a Vietnamese finance app. Analyze the user's text to extract transaction details into a structured JSON object.
+- Context: The user is recording a business transaction in Vietnamese. The current date is ${new Date().toLocaleDateString('en-CA')}.
 - Available Products: [${productNames.join(', ')}].
-- Task:
-  1.  **Entry Type**: Determine if it's a "plan" (future intent, e.g., "sẽ bán") or "transaction" (past/present event, e.g., "đã bán", "bán").
-  2.  **Product Name**: Identify the product by finding the closest match from the 'Available Products' list. This is a critical step.
-  3.  **Quantity**: Extract the quantity. A number immediately before a product name is almost always the quantity. If no quantity is specified, default to 1. For example, in "bán 7 kem chuối", the quantity is 7.
-  4.  **Discount**: Extract any percentage discount (e.g., "chiết khấu 30%" means discountPercentage is 30).
-  5.  **Transaction Type**: Set 'type' to 'income' for sales ('bán', 'thu'), or 'expense' for purchases ('mua', 'nhập').
-  6.  **Description**: Generate a brief description from the user's text.
+- Task: Extract the following fields from the user's text.
+  1.  **entryType**: "plan" for future intent (e.g., "ngày mai", "sẽ bán"), otherwise "transaction".
+  2.  **productName**: Find the closest match from the 'Available Products' list.
+  3.  **quantity**: Extract the quantity. A number immediately before a product name is almost always the quantity. Default to 1 if not specified.
+  4.  **discountPercentage**: Extract any percentage discount (e.g., "chiết khấu 15%" -> 15).
+  5.  **type**: "income" for sales ('bán', 'thu'), or "expense" for purchases ('mua', 'nhập').
+  6.  **customerName**: Extract the customer's name (e.g., "chị Hà", "anh Ba").
+  7.  **customerNote**: Extract any additional notes (e.g., "giao 15h chiều").
 - IMPORTANT: Do NOT include an 'amount' field in your JSON response. The application will calculate it.
 - User's text: "${textInput}"`;
 
@@ -1138,11 +1139,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         properties: { 
                             "entryType": { "type": "STRING", "enum": ["plan", "transaction"] },
                             "type": { "type": "STRING", "enum": ["income", "expense"] }, 
-                            "description": { "type": "STRING" }, 
-                            "category": { "type": "STRING" }, 
                             "productName": { "type": "STRING", "enum": productNames },
                             "quantity": { "type": "NUMBER" },
-                            "discountPercentage": { "type": "NUMBER" }
+                            "discountPercentage": { "type": "NUMBER" },
+                            "customerName": { "type": "STRING" },
+                            "customerNote": { "type": "STRING" }
                         },
                     } 
                 } 
@@ -1167,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             finalAmount *= (1 - parsedData.discountPercentage / 100);
                         }
                         parsedData.amount = finalAmount;
-                        parsedData.description = parsedData.description || `${quantity} ${product.name}`;
+                        parsedData.description = `${quantity} ${product.name}`;
                     }
                 }
                 
