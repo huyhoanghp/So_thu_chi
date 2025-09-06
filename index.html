@@ -518,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioCache = {};
     let currentAudio = null;
     let currentlyPlayingButton = null;
+    let currentEditingTransaction = null;
     const playIconSVG = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.5 12a4.5 4.5 0 000-8v8z"></path></svg>`;
     const stopIconSVG = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><rect width="10" height="10" x="5" y="5" rx="1"></rect></svg>`;
     
@@ -650,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createPlanElement(plan) {
-        const { id, type, description, amount, category, customerName, customerNote, createdAt, date } = plan;
+        const { id, type, description, amount, category, customerName, customerNote, createdAt, date, productId, quantity } = plan;
         const isIncome = type === 'income';
         const item = document.createElement('li');
         item.className = `p-3 rounded-lg flex items-start gap-3 border-l-4 ${isIncome ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`;
@@ -676,7 +677,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button data-action="edit" class="text-gray-500 hover:text-blue-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
                 <button data-action="delete" class="text-gray-500 hover:text-red-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
             </div>`;
-        item.querySelector('.plan-item-checkbox').addEventListener('change', (e) => { if (e.target.checked) { openCompletePlanModal(plan); e.target.checked = false; } });
+        item.querySelector('.plan-item-checkbox').addEventListener('change', (e) => { 
+            if (e.target.checked) { 
+                const planData = { id, type, description, amount, date, category, customerName, customerNote, productId, quantity };
+                openCompletePlanModal(planData); 
+                e.target.checked = false; 
+            } 
+        });
         item.querySelector('button[data-action="edit"]').addEventListener('click', () => openFormModal('editPlan', plan));
         item.querySelector('button[data-action="delete"]').addEventListener('click', () => deletePlan(id, description));
         return item;
@@ -759,6 +766,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = data.type || 'income';
         formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
         updateCategoryOptions();
+
+        if (mode === 'editTransaction') {
+            currentEditingTransaction = transactions.find(t => t.id === data.id) || null;
+        } else {
+            currentEditingTransaction = null;
+        }
 
         switch(mode) {
             case 'addPlan':
@@ -882,33 +895,53 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const executeSave = async () => {
             try {
-                if (currentFormMode.includes('add')) {
-                    if (currentFormMode === 'addPlan') { 
-                        await plansCollection.add(data); 
-                        showToast("Đã thêm kế hoạch thành công!");
-                    } else { // addTransaction
-                        await transactionsCollection.add(data);
-                        if (data.productId && data.quantity > 0) {
-                            const productRef = productsCollection.doc(data.productId);
-                            await db.runTransaction(async (transaction) => {
-                                const productDoc = await transaction.get(productRef);
-                                if (!productDoc.exists) { throw "Sản phẩm không tồn tại."; }
-                                const newStock = productDoc.data().stock - data.quantity;
-                                transaction.update(productRef, { stock: newStock });
-                            });
-                        }
-                        showToast("Đã thêm giao dịch thành công!"); 
+                if (currentFormMode === 'addPlan') {
+                    await plansCollection.add(data); 
+                    showToast("Đã thêm kế hoạch thành công!");
+                } else if (currentFormMode === 'addTransaction') {
+                    await transactionsCollection.add(data);
+                    if (data.productId && data.quantity > 0) {
+                        const productRef = productsCollection.doc(data.productId);
+                        await productRef.update({ stock: firebase.firestore.FieldValue.increment(-data.quantity) });
                     }
-                } else { // Edit mode
+                    showToast("Đã thêm giao dịch thành công!");
+                } else if (currentFormMode === 'editPlan') {
                     delete data.createdAt;
-                     if (currentFormMode === 'editPlan') { 
-                        await plansCollection.doc(editingIdInput.value).update(data); 
-                        showToast("Đã cập nhật kế hoạch!"); 
-                    } else { // editTransaction
-                        // Note: Reverting stock on edit is complex and not implemented.
-                        await transactionsCollection.doc(editingIdInput.value).update(data); 
-                        showToast("Đã cập nhật giao dịch!");
+                    await plansCollection.doc(editingIdInput.value).update(data); 
+                    showToast("Đã cập nhật kế hoạch!");
+                } else if (currentFormMode === 'editTransaction') {
+                    const beforeTx = currentEditingTransaction;
+                    const afterTxData = data;
+                    const txDocRef = transactionsCollection.doc(editingIdInput.value);
+
+                    // Calculate stock changes before updating
+                    const oldProductId = beforeTx ? beforeTx.productId : null;
+                    const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
+                    const newProductId = afterTxData.productId;
+                    const newQuantity = afterTxData.quantity || 0;
+
+                    // Update transaction and stock in a batch for atomicity
+                    const batch = db.batch();
+                    batch.update(txDocRef, afterTxData);
+
+                    if (oldProductId !== newProductId) {
+                        if (oldProductId && oldQuantity > 0) {
+                            const oldProductRef = productsCollection.doc(oldProductId);
+                            batch.update(oldProductRef, { stock: firebase.firestore.FieldValue.increment(oldQuantity) });
+                        }
+                        if (newProductId && newQuantity > 0) {
+                            const newProductRef = productsCollection.doc(newProductId);
+                            batch.update(newProductRef, { stock: firebase.firestore.FieldValue.increment(-newQuantity) });
+                        }
+                    } else if (oldProductId === newProductId && oldQuantity !== newQuantity) {
+                        if (oldProductId) {
+                            const stockDifference = oldQuantity - newQuantity;
+                            const productRef = productsCollection.doc(oldProductId);
+                            batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(stockDifference) });
+                        }
                     }
+                    await batch.commit();
+                    showToast("Đã cập nhật giao dịch và kho hàng!");
                 }
                 closeFormModal();
             } catch (err) { 
@@ -949,13 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await transactionsCollection.doc(tx.id).delete();
                 if (tx.productId && tx.quantity > 0) {
                     const productRef = productsCollection.doc(tx.productId);
-                     await db.runTransaction(async (transaction) => {
-                        const productDoc = await transaction.get(productRef);
-                        if (productDoc.exists) {
-                            const newStock = productDoc.data().stock + tx.quantity;
-                            transaction.update(productRef, { stock: newStock });
-                        }
-                    });
+                    await productRef.update({ stock: firebase.firestore.FieldValue.increment(tx.quantity) });
                 }
                 showToast("Đã xóa giao dịch."); 
             } catch(e) { 
@@ -982,18 +1009,24 @@ document.addEventListener('DOMContentLoaded', () => {
         delete newTransaction.id;
         
         try {
-            await transactionsCollection.add(newTransaction);
-            // ADDED: Stock deduction logic when completing a plan
+            const batch = db.batch();
+            
+            // 1. Create new transaction
+            const newTxRef = transactionsCollection.doc();
+            batch.set(newTxRef, newTransaction);
+            
+            // 2. Update stock if it was a product sale
             if (newTransaction.productId && newTransaction.quantity > 0) {
                 const productRef = productsCollection.doc(newTransaction.productId);
-                await db.runTransaction(async (transaction) => {
-                    const productDoc = await transaction.get(productRef);
-                    if (!productDoc.exists) { throw "Sản phẩm trong kế hoạch không tồn tại."; }
-                    const newStock = productDoc.data().stock - newTransaction.quantity;
-                    transaction.update(productRef, { stock: newStock });
-                });
+                batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(-newTransaction.quantity) });
             }
-            await plansCollection.doc(plan.id).delete();
+            
+            // 3. Delete the plan
+            const planRef = plansCollection.doc(plan.id);
+            batch.delete(planRef);
+            
+            await batch.commit();
+            
             showToast("Đã hoàn thành kế hoạch!");
             closeCompletePlanModal();
         } catch (err) { showToast(`Lỗi: ${err.message}`, "error"); }
