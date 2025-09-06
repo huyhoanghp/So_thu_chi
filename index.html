@@ -1117,12 +1117,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date();
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const dayAfterTomorrow = new Date(today);
-        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+        const dateInTwoDays = new Date(today);
+        dateInTwoDays.setDate(dateInTwoDays.getDate() + 2);
 
         const todayStr = today.toISOString().split('T')[0];
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        const dayAfterTomorrowStr = dayAfterTomorrow.toISOString().split('T')[0];
+        const dateInTwoDaysStr = dateInTwoDays.toISOString().split('T')[0];
 
         const prompt = `You are an expert Vietnamese financial assistant. Your task is to extract detailed information from a user's text and format it into a JSON object.
 
@@ -1137,7 +1137,7 @@ RULES & EXAMPLES:
 2.  **date**: MUST determine the exact date based on the current date and return it in YYYY-MM-DD format.
     - "hôm nay" -> "${todayStr}"
     - "ngày mai" -> "${tomorrowStr}"
-    - "2 ngày nữa" -> "${dayAfterTomorrowStr}"
+    - "2 ngày nữa" -> "${dateInTwoDaysStr}"
     - If no date is mentioned, use today's date: "${todayStr}".
 3.  **productName**: MUST find the closest product name from the 'Available Products' list.
 4.  **quantity** (CRITICAL): MUST extract the quantity. The number just before the productName (or its unit like 'ly', 'que') is the quantity.
