@@ -30,7 +30,7 @@
         }
         .loader { width: 48px; height: 48px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .tab-button.active { 
+        .tab-button.active, .report-tab-button.active { 
             border-color: #4f46e5; 
             color: #4f46e5; 
             background-color: #eef2ff; 
@@ -141,7 +141,7 @@
                                 <button id="tab-plan" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Kế Hoạch</button>
                                 <button id="tab-products" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Sản phẩm</button>
                                 <button id="tab-history" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Lịch Sử Giao Dịch</button>
-                                <button id="tab-dashboard" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">Trợ lý</button>
+                                <button id="tab-dashboard" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">Báo cáo</button>
                             </nav>
                         </div>
 
@@ -183,39 +183,76 @@
                                 <p id="transaction-empty-state" class="text-center text-gray-500 py-8">Chưa có giao dịch nào được ghi nhận.</p>
                             </div>
                             
-                            <!-- TAB TRỢ LÝ -->
-                            <div id="content-dashboard" class="hidden space-y-6">
-                               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-center mb-2">Cơ Cấu Chi Phí</h3>
-                                        <div class="relative h-64 sm:h-80 w-full">
-                                            <canvas id="expense-pie-chart"></canvas>
-                                        </div>
+                            <!-- TAB BÁO CÁO -->
+                            <div id="content-dashboard" class="hidden">
+                                <!-- Report Sub-tabs -->
+                                <div class="mb-4 border-b border-gray-200">
+                                    <nav class="flex -mb-px">
+                                        <button data-report="overview" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Tổng quan</button>
+                                        <button data-report="products" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Sản phẩm</button>
+                                        <button data-report="inventory" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Tồn kho</button>
+                                        <button data-report="ai_assistant" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Trợ lý AI</button>
+                                    </nav>
+                                </div>
+
+                                <!-- Report Content: Overview -->
+                                <div id="report-content-overview" class="space-y-6">
+                                    <div id="comparison-section" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <!-- Comparison cards will be inserted here by JS -->
                                     </div>
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-center mb-2">Dòng Tiền Theo Thời Gian</h3>
-                                        <div class="relative h-64 sm:h-80 w-full">
-                                            <canvas id="flow-line-chart"></canvas>
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-center mb-2">Cơ Cấu Chi Phí</h3>
+                                            <div class="relative h-64 sm:h-80 w-full"><canvas id="expense-pie-chart"></canvas></div>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-center mb-2">Xu hướng Chi phí</h3>
+                                            <div class="relative h-64 sm:h-80 w-full"><canvas id="expense-trend-chart"></canvas></div>
                                         </div>
                                     </div>
                                 </div>
-                               <div class="flex flex-col h-[60vh] bg-white rounded-lg border">
-                                    <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto">
-                                        <!-- Chat messages will be appended here -->
-                                    </div>
-                                    <div id="ai-thinking-indicator" class="px-4 pb-2 hidden">
-                                        <div class="flex items-center gap-2 text-gray-500">
-                                            <div class="spinner w-5 h-5"></div>
-                                            <span>Trợ lý đang suy nghĩ...</span>
+
+                                <!-- Report Content: Products -->
+                                <div id="report-content-products" class="hidden space-y-6">
+                                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-center mb-2">Top 5 Sản phẩm Bán chạy</h3>
+                                            <div id="top-selling-products" class="space-y-2"></div>
+                                        </div>
+                                         <div>
+                                            <h3 class="text-lg font-semibold text-center mb-2">Top 5 Sản phẩm Lợi nhuận cao</h3>
+                                            <div id="top-profit-products" class="space-y-2"></div>
                                         </div>
                                     </div>
-                                    <div class="p-4 border-t">
-                                        <form id="chat-form" class="flex gap-2">
-                                            <input type="text" id="chat-input" placeholder="Hỏi trợ lý về dữ liệu của bạn..." class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                            <button type="submit" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Gửi</button>
-                                        </form>
+                                </div>
+
+                                <!-- Report Content: Inventory -->
+                                <div id="report-content-inventory" class="hidden space-y-4">
+                                    <div class="flex items-center gap-2">
+                                        <label for="low-stock-threshold" class="font-medium text-sm">Cảnh báo khi tồn kho dưới:</label>
+                                        <input type="number" id="low-stock-threshold" value="10" class="w-20 px-2 py-1 border rounded-md">
                                     </div>
-                               </div>
+                                    <div id="inventory-report-table" class="overflow-x-auto"></div>
+                                </div>
+                                
+                                <!-- Report Content: AI Assistant -->
+                                <div id="report-content-ai_assistant" class="hidden">
+                                   <div class="flex flex-col h-[60vh] bg-white rounded-lg border">
+                                        <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto"></div>
+                                        <div id="ai-thinking-indicator" class="px-4 pb-2 hidden">
+                                            <div class="flex items-center gap-2 text-gray-500">
+                                                <div class="spinner w-5 h-5"></div>
+                                                <span>Trợ lý đang suy nghĩ...</span>
+                                            </div>
+                                        </div>
+                                        <div class="p-4 border-t">
+                                            <form id="chat-form" class="flex gap-2">
+                                                <input type="text" id="chat-input" placeholder="Hỏi trợ lý về dữ liệu của bạn..." class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <button type="submit" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Gửi</button>
+                                            </form>
+                                        </div>
+                                   </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -528,9 +565,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
-    let expensePieChart, flowLineChart;
+    let expensePieChart, expenseTrendChart;
     const expensePieChartCtx = document.getElementById('expense-pie-chart')?.getContext('2d');
-    const flowLineChartCtx = document.getElementById('flow-line-chart')?.getContext('2d');
+    const expenseTrendChartCtx = document.getElementById('expense-trend-chart')?.getContext('2d');
 
     let auth, db, geminiApiKey;
     let transactionsCollection, plansCollection, productsCollection;
@@ -643,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProductList(searchedProducts);
 
         if(!contentDashboard.classList.contains('hidden')){
-            updateCharts(dateFilteredTransactions);
+            renderReports();
         }
     }
     
@@ -834,7 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (type === 'income') {
                 productSelect.value = data.productId;
                 handleProductSelection(true); // Pass true to indicate it's from AI
-            } else if (type === 'expense' && data.category === 'Nhập hàng') {
+            } else if (type === 'expense' && categorySelect.value === 'Nhập hàng') {
                 importProductSelect.value = data.productId;
                 handleImportProductSelection(true);
             }
@@ -938,53 +975,49 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const executeSave = async () => {
             try {
-                if (currentFormMode.includes('add')) {
-                    if (currentFormMode === 'addPlan') { 
-                        await plansCollection.add(data); 
-                        showToast("Đã thêm kế hoạch thành công!");
-                    } else { // addTransaction
-                        await transactionsCollection.add(data);
-                        if (data.productId && data.quantity > 0) {
-                            const stockChange = data.type === 'income' ? -data.quantity : data.quantity;
-                            await productsCollection.doc(data.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
-                        }
-                        showToast("Đã thêm giao dịch thành công!");
+                if (currentFormMode === 'addPlan') {
+                    await plansCollection.add(data); 
+                    showToast("Đã thêm kế hoạch thành công!");
+                } else if (currentFormMode === 'addTransaction') {
+                    await transactionsCollection.add(data);
+                    if (data.productId && data.quantity > 0) {
+                        const stockChange = data.type === 'income' ? -data.quantity : data.quantity;
+                        await productsCollection.doc(data.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
                     }
-                } else { // Edit mode
-                    if (currentFormMode === 'editPlan') {
-                        delete data.createdAt;
-                        await plansCollection.doc(editingIdInput.value).update(data); 
-                        showToast("Đã cập nhật kế hoạch!");
-                    } else if (currentFormMode === 'editTransaction') {
-                        const beforeTx = currentEditingTransaction;
-                        const afterTxData = data;
-                        const txDocRef = transactionsCollection.doc(editingIdInput.value);
+                    showToast("Đã thêm giao dịch thành công!");
+                } else if (currentFormMode === 'editPlan') {
+                    delete data.createdAt;
+                    await plansCollection.doc(editingIdInput.value).update(data); 
+                    showToast("Đã cập nhật kế hoạch!");
+                } else if (currentFormMode === 'editTransaction') {
+                    const beforeTx = currentEditingTransaction;
+                    const afterTxData = data;
+                    const txDocRef = transactionsCollection.doc(editingIdInput.value);
 
-                        const oldProductId = beforeTx ? beforeTx.productId : null;
-                        const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
-                        const oldType = beforeTx ? beforeTx.type : null;
-                        const newProductId = afterTxData.productId;
-                        const newQuantity = afterTxData.quantity || 0;
-                        const newType = afterTxData.type;
+                    const oldProductId = beforeTx ? beforeTx.productId : null;
+                    const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
+                    const oldType = beforeTx ? beforeTx.type : null;
+                    const newProductId = afterTxData.productId;
+                    const newQuantity = afterTxData.quantity || 0;
+                    const newType = afterTxData.type;
 
-                        const batch = db.batch();
-                        batch.update(txDocRef, afterTxData);
+                    const batch = db.batch();
+                    batch.update(txDocRef, afterTxData);
 
-                        if (oldProductId !== newProductId || oldQuantity !== newQuantity || oldType !== newType) {
-                            // Revert old stock change
-                            if (oldProductId && oldQuantity > 0) {
-                                const oldStockChange = oldType === 'income' ? oldQuantity : -oldQuantity;
-                                batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(oldStockChange) });
-                            }
-                            // Apply new stock change
-                            if (newProductId && newQuantity > 0) {
-                                const newStockChange = newType === 'income' ? -newQuantity : newQuantity;
-                                batch.update(productsCollection.doc(newProductId), { stock: firebase.firestore.FieldValue.increment(newStockChange) });
-                            }
+                    if (oldProductId !== newProductId || oldQuantity !== newQuantity || oldType !== newType) {
+                        // Revert old stock change
+                        if (oldProductId && oldQuantity > 0) {
+                            const oldStockChange = oldType === 'income' ? oldQuantity : -oldQuantity;
+                            batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(oldStockChange) });
                         }
-                        await batch.commit();
-                        showToast("Đã cập nhật giao dịch và kho hàng!");
+                        // Apply new stock change
+                        if (newProductId && newQuantity > 0) {
+                            const newStockChange = newType === 'income' ? -newQuantity : newQuantity;
+                            batch.update(productsCollection.doc(newProductId), { stock: firebase.firestore.FieldValue.increment(newStockChange) });
+                        }
                     }
+                    await batch.commit();
+                    showToast("Đã cập nhật giao dịch và kho hàng!");
                 }
                 closeFormModal();
             } catch (err) { 
@@ -1201,28 +1234,122 @@ document.addEventListener('DOMContentLoaded', () => {
         else {
             contentDashboard.classList.remove('hidden');
             tabDashboard.classList.add('active');
+            switchReportTab('overview');
+            renderReports();
             if (chatHistory.length === 0) {
                 chatHistory.push({ role: 'model', parts: [{ text: "Chào bạn, tôi là trợ lý phân tích tài chính. Bạn muốn biết điều gì về dữ liệu thu chi trong khoảng thời gian đã chọn?" }] });
+                renderChat();
             }
-            renderChat();
-            renderAll();
         }
     }
+
+    function switchReportTab(tab) {
+        document.querySelectorAll('.report-tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.report-tab-button[data-report="${tab}"]`).classList.add('active');
+        
+        document.querySelectorAll('[id^="report-content-"]').forEach(content => content.classList.add('hidden'));
+        document.getElementById(`report-content-${tab}`).classList.remove('hidden');
+    }
+    
+    function renderReports() {
+        // Main calculations based on date filter
+        const currentPeriodData = filterData(transactions, 'date');
+        
+        // Render all reports
+        renderOverviewReport(currentPeriodData);
+        renderProductPerformanceReports(currentPeriodData);
+        renderInventoryReport();
+    }
+    
+    function renderOverviewReport(currentData) {
+        // Expense Pie Chart
+        if (expensePieChart) expensePieChart.destroy();
+        const expenses = currentData.filter(t => t.type === 'expense');
+        if (expensePieChartCtx && expenses.length > 0) {
+            const expenseByCategory = expenses.reduce((acc, curr) => { 
+                acc[curr.category] = (acc[curr.category] || 0) + (curr.amount || 0); return acc; 
+            }, {});
+            expensePieChart = new Chart(expensePieChartCtx, { type: 'doughnut', data: { labels: Object.keys(expenseByCategory), datasets: [{ data: Object.values(expenseByCategory), backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
+
+        // Expense Trend Chart
+        if (expenseTrendChart) expenseTrendChart.destroy();
+        if (expenseTrendChartCtx && expenses.length > 0) {
+             const expenseByDate = expenses.reduce((acc, curr) => { 
+                const date = curr.date.split('T')[0]; 
+                if (!acc[date]) acc[date] = 0; 
+                acc[date] += (curr.amount || 0); 
+                return acc; 
+            }, {});
+            const sortedDates = Object.keys(expenseByDate).sort((a,b) => new Date(a) - new Date(b));
+            expenseTrendChart = new Chart(expenseTrendChartCtx, { type: 'line', data: { labels: sortedDates, datasets: [{ label: 'Tổng Chi', data: sortedDates.map(date => expenseByDate[date]), borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
+    }
+    
+    function renderProductPerformanceReports(source) {
+        const sales = source.filter(tx => tx.type === 'income' && tx.productId && tx.quantity > 0);
+        const productStats = {};
+
+        sales.forEach(sale => {
+            if (!productStats[sale.productId]) {
+                const productInfo = products.find(p => p.id === sale.productId);
+                productStats[sale.productId] = {
+                    name: productInfo ? productInfo.name : 'Sản phẩm không xác định',
+                    costPrice: productInfo ? productInfo.costPrice : 0,
+                    quantity: 0,
+                    totalRevenue: 0,
+                };
+            }
+            productStats[sale.productId].quantity += sale.quantity;
+            productStats[sale.productId].totalRevenue += sale.amount;
+        });
+
+        const statsArray = Object.values(productStats).map(p => ({
+            ...p,
+            profit: p.totalRevenue - (p.costPrice * p.quantity)
+        }));
+
+        // Top Selling
+        const topSelling = [...statsArray].sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+        document.getElementById('top-selling-products').innerHTML = topSelling.map(p => `<div class="p-2 bg-gray-50 rounded-md"><strong>${p.name}</strong>: đã bán ${p.quantity}</div>`).join('') || '<p class="text-center text-gray-500">Không có dữ liệu.</p>';
+
+        // Top Profit
+        const topProfit = [...statsArray].sort((a, b) => b.profit - a.profit).slice(0, 5);
+        document.getElementById('top-profit-products').innerHTML = topProfit.map(p => `<div class="p-2 bg-gray-50 rounded-md"><strong>${p.name}</strong>: ${formatCurrency(p.profit)}</div>`).join('') || '<p class="text-center text-gray-500">Không có dữ liệu.</p>';
+    }
+    
+    function renderInventoryReport() {
+        const threshold = +document.getElementById('low-stock-threshold').value;
+        let tableHTML = `<table class="w-full text-sm text-left text-gray-500">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                <tr>
+                    <th scope="col" class="px-4 py-3">Sản phẩm</th>
+                    <th scope="col" class="px-4 py-3 text-right">Tồn kho</th>
+                    <th scope="col" class="px-4 py-3 text-right">Giá trị kho</th>
+                </tr>
+            </thead>
+            <tbody>`;
+        
+        if(products.length === 0) {
+            tableHTML += '<tr><td colspan="3" class="text-center p-4">Chưa có sản phẩm nào.</td></tr>';
+        } else {
+            products.forEach(p => {
+                const stockValue = p.stock * p.costPrice;
+                const isLowStock = p.stock < threshold;
+                tableHTML += `<tr class="border-b ${isLowStock ? 'bg-red-50 text-red-700 font-medium' : 'bg-white'}">
+                    <td class="px-4 py-3">${p.name}</td>
+                    <td class="px-4 py-3 text-right">${p.stock}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(stockValue)}</td>
+                </tr>`;
+            });
+        }
+        
+        tableHTML += '</tbody></table>';
+        document.getElementById('inventory-report-table').innerHTML = tableHTML;
+    }
+
+
     const handleFilterChange = () => { const isCustom = reportRangeEl.value === 'custom'; customDateRangeDiv.classList.toggle('hidden', !isCustom); customDateRangeDiv.classList.toggle('flex', isCustom); renderAll(); };
-    function updateCharts(source) {
-       if (expensePieChart) expensePieChart.destroy();
-        if (flowLineChart) flowLineChart.destroy();
-        const expenseLabels = []; const expenseData = []; const lineLabels = []; const incomeData = []; const expenseLineData = [];
-        const expenses = source.filter(t => t.type === 'expense');
-        if (expenses.length > 0) { const expenseByCategory = expenses.reduce((acc, curr) => { acc[curr.category] = (acc[curr.category] || 0) + (curr.amount || 0); return acc; }, {}); expenseLabels.push(...Object.keys(expenseByCategory)); expenseData.push(...Object.values(expenseByCategory)); }
-        if (source.length > 0) { const dataByDate = source.reduce((acc, curr) => { const date = curr.date.split('T')[0]; if (!acc[date]) acc[date] = { income: 0, expense: 0 }; acc[date][curr.type] += (curr.amount || 0); return acc; }, {}); const sortedDates = Object.keys(dataByDate).sort((a,b) => new Date(a) - new Date(b)); lineLabels.push(...sortedDates.map(date => new Date(date).toLocaleDateString('vi-VN'))); incomeData.push(...sortedDates.map(date => dataByDate[date].income)); expenseLineData.push(...sortedDates.map(date => dataByDate[date].expense)); }
-        if (expensePieChartCtx && expenseLabels.length > 0) {
-            expensePieChart = new Chart(expensePieChartCtx, { type: 'doughnut', data: { labels: expenseLabels, datasets: [{ data: expenseData, backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'] }] }, options: { responsive: true, maintainAspectRatio: false } });
-        }
-        if (flowLineChartCtx && lineLabels.length > 0) {
-            flowLineChart = new Chart(flowLineChartCtx, { type: 'line', data: { labels: lineLabels, datasets: [ { label: 'Tổng Thu', data: incomeData, borderColor: '#16a34a', backgroundColor: '#16a34a20', fill: true, tension: 0.1 }, { label: 'Tổng Chi', data: expenseLineData, borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 } ] }, options: { responsive: true, maintainAspectRatio: false } });
-        }
-    }
     
     // --- AI LOGIC (Entry & Chat) ---
     const openAiEntryModal = () => { aiInput.value = ''; aiEntryModal.classList.remove('hidden'); setTimeout(() => aiEntryModal.classList.remove('opacity-0'), 10); };
@@ -1545,7 +1672,10 @@ USER TEXT: "${textInput}"`;
     transactionQuantityInput.addEventListener('input', handleQuantityChange);
     importProductSelect.addEventListener('change', () => handleImportProductSelection(false));
     importQuantityInput.addEventListener('input', handleImportQuantityChange);
-
+    document.getElementById('low-stock-threshold').addEventListener('input', renderInventoryReport);
+    document.querySelectorAll('.report-tab-button').forEach(button => {
+        button.addEventListener('click', (e) => switchReportTab(e.target.dataset.report));
+    });
 
     const fabToggle = () => {
         fabActions.classList.toggle('opacity-0');
