@@ -669,12 +669,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderAll() {
-        const dateFilteredTransactions = filterData(transactions, 'date');
+        const { currentPeriodData } = getReportData();
         const searchedPlans = filterData(plans, 'search', searchPlanInput.value);
-        const searchedTransactions = filterData(dateFilteredTransactions, 'search', searchHistoryInput.value);
+        const searchedTransactions = filterData(transactions, 'search', searchHistoryInput.value);
         const searchedProducts = filterData(products, 'search', searchProductsInput.value);
         
-        updateSummary(dateFilteredTransactions);
+        updateSummary(currentPeriodData);
         renderTransactionList(searchedTransactions);
         renderPlanList(searchedPlans);
         renderProductList(searchedProducts);
@@ -1216,14 +1216,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateFormFieldsVisibility(); 
     }
-    function filterData(data, filterType, searchTerm = '') {
-        if (filterType === 'search') { const term = searchTerm.toLowerCase().trim(); if (!term) return data; return data.filter(item => Object.values(item).some(value => String(value).toLowerCase().includes(term))); }
-        if (filterType === 'date') { const range = reportRangeEl.value; if (range === 'all') return data.slice(); const today = new Date(); today.setHours(0, 0, 0, 0); let start, end = new Date(); end.setHours(23, 59, 59, 999);
-            switch(range) { case 'day': start = new Date(today); break; case 'week': start = new Date(today.setDate(today.getDate() - (today.getDay() || 7) + 1)); break; case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1); break; case 'year': start = new Date(today.getFullYear(), 0, 1); break; case 'custom': start = customStartEl.value ? new Date(customStartEl.value) : null; end = customEndEl.value ? new Date(customEndEl.value) : null; if(start) start.setHours(0,0,0,0); if(end) end.setHours(23, 59, 59, 999); break; default: start = end = null; }
-            return data.filter(t => { if (!t.date) return false; const d = new Date(t.date); return (!start || d >= start) && (!end || d <= end); });
-        } return data;
+    
+    function getPreviousPeriodRange(currentStart, currentEnd) {
+        if (!currentStart || !currentEnd) return null;
+        const duration = currentEnd.getTime() - currentStart.getTime();
+        if(duration <= 0) return null;
+        
+        const prevEnd = new Date(currentStart.getTime() - 1);
+        const prevStart = new Date(prevEnd.getTime() - duration);
+        
+        prevStart.setHours(0,0,0,0);
+        prevEnd.setHours(23,59,59,999);
+
+        return { start: prevStart, end: prevEnd };
+    }
+
+    function filterDataByDateRange(data, start, end) {
+        if (!start || !end) return [];
+        return data.filter(t => {
+            if (!t.date) return false;
+            const d = new Date(t.date);
+            return d >= start && d <= end;
+        });
     }
     
+    function filterData(data, filterType, searchTerm = '') {
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) return data;
+        return data.filter(item => Object.values(item).some(value => String(value).toLowerCase().includes(term)));
+    }
+
     function switchTab(tab) {
         [contentPlan, contentProducts, contentHistory, contentDashboard].forEach(c => c.classList.add('hidden'));
         [tabPlan, tabProducts, tabHistory, tabDashboard].forEach(t => t.classList.remove('active'));
@@ -1252,13 +1274,127 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderReports() {
-        const currentPeriodData = filterData(transactions, 'date');
-        renderOverviewReport(currentPeriodData);
+        const { currentPeriodData, previousPeriodData } = getReportData();
+        renderOverviewReport(currentPeriodData, previousPeriodData);
         renderProductPerformanceReports(currentPeriodData);
         renderInventoryReport();
     }
     
-    function renderOverviewReport(currentData) {
+    function getReportData() {
+        const range = reportRangeEl.value;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let currentStart, currentEnd;
+
+        switch(range) {
+            case 'day':
+                currentStart = new Date(today);
+                currentEnd = new Date(today);
+                break;
+            case 'week':
+                currentStart = new Date(today);
+                currentStart.setDate(currentStart.getDate() - (currentStart.getDay() || 7) + 1);
+                currentEnd = new Date(currentStart);
+                currentEnd.setDate(currentEnd.getDate() + 6);
+                break;
+            case 'month':
+                currentStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                currentEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'year':
+                currentStart = new Date(today.getFullYear(), 0, 1);
+                currentEnd = new Date(today.getFullYear(), 11, 31);
+                break;
+            case 'custom':
+                currentStart = customStartEl.value ? new Date(customStartEl.value) : null;
+                currentEnd = customEndEl.value ? new Date(customEndEl.value) : null;
+                break;
+            default: // all
+                currentStart = null;
+                currentEnd = null;
+        }
+
+        if(currentEnd) currentEnd.setHours(23, 59, 59, 999);
+        
+        const currentPeriodData = currentStart ? filterDataByDateRange(transactions, currentStart, currentEnd) : transactions;
+        
+        const previousPeriodRange = getPreviousPeriodRange(currentStart, currentEnd);
+        const previousPeriodData = previousPeriodRange ? filterDataByDateRange(transactions, previousPeriodRange.start, previousPeriodRange.end) : [];
+        
+        return { currentPeriodData, previousPeriodData };
+    }
+
+    function createComparisonCardHTML(title, currentValue, previousValue, isExpense) {
+        let percentageChange = 0;
+        let changeText;
+        let isPositive;
+
+        if (previousValue === 0) {
+            percentageChange = currentValue > 0 ? Infinity : 0;
+        } else {
+            percentageChange = ((currentValue - previousValue) / previousValue) * 100;
+        }
+
+        if (isExpense) {
+            isPositive = percentageChange <= 0; // Decrease is good for expenses
+        } else {
+            isPositive = percentageChange >= 0; // Increase is good for income/profit
+        }
+
+        let colorClass = 'text-gray-500';
+        let arrowSVG = '';
+
+        if (percentageChange === Infinity) {
+            changeText = 'Mới';
+            colorClass = 'text-green-600';
+            arrowSVG = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>`;
+        } else if (Math.abs(percentageChange) > 0) {
+            colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+            arrowSVG = isPositive 
+                ? `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>` 
+                : `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+            changeText = `${Math.abs(percentageChange).toFixed(0)}%`;
+        } else {
+             changeText = `0%`;
+        }
+
+        return `
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-gray-500">${title}</h3>
+                <div class="mt-1 flex items-baseline justify-between">
+                    <p class="text-2xl font-semibold text-gray-900">${formatCurrency(currentValue)}</p>
+                    <span class="flex items-center text-sm font-semibold ${colorClass}">
+                        ${arrowSVG}
+                        ${changeText}
+                    </span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderOverviewReport(currentData, previousData) {
+        // --- Comparison Cards ---
+        const currentIncome = currentData.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const currentExpense = currentData.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+        const currentProfit = currentIncome - currentExpense;
+
+        const previousIncome = previousData.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const previousExpense = previousData.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+        const previousProfit = previousIncome - previousExpense;
+        
+        const comparisonSection = document.getElementById('comparison-section');
+        if(reportRangeEl.value !== 'all' && reportRangeEl.value !== 'custom') {
+            comparisonSection.innerHTML = `
+                ${createComparisonCardHTML('Doanh thu', currentIncome, previousIncome, false)}
+                ${createComparisonCardHTML('Chi phí', currentExpense, previousExpense, true)}
+                ${createComparisonCardHTML('Lợi nhuận', currentProfit, previousProfit, false)}
+            `;
+        } else {
+            comparisonSection.innerHTML = '';
+        }
+
+
+        // --- Charts ---
         if (expensePieChart) expensePieChart.destroy();
         if (cashflowTrendChart) cashflowTrendChart.destroy();
         
@@ -1499,7 +1635,7 @@ USER TEXT: "${textInput}"`;
         renderChat();
         chatInput.value = '';
         aiThinkingIndicator.classList.remove('hidden');
-        const filteredTx = filterData(transactions, 'date');
+        const filteredTx = filterDataByDateRange(transactions, ...Object.values(getReportData().currentPeriodRange));
         const dataSummary = `Dữ liệu tóm tắt:\n- Tổng thu: ${totalIncomeEl.textContent}\n- Tổng chi: ${totalExpenseEl.textContent}\n- Lợi nhuận: ${netProfitEl.textContent}\n- Chi tiết các khoản chi: ${filteredTx.filter(t => t.type === 'expense').map(t => `${t.description} (${t.category}): ${formatCurrency(t.amount)}`).join(', ') || 'Không có khoản chi nào.'}`;
         const systemPrompt = `Bạn là một chuyên gia phân tích tài chính thân thiện và chuyên nghiệp. Nhiệm vụ của bạn là trả lời câu hỏi của người dùng dựa trên dữ liệu tóm tắt được cung cấp. Hãy đưa ra câu trả lời rõ ràng, đi thẳng vào vấn đề và nếu có thể, hãy đưa ra lời khuyên hữu ích.`;
         try {
@@ -1590,8 +1726,8 @@ USER TEXT: "${textInput}"`;
     }
 
     const exportToXLSX = () => {
-        const source = filterData(transactions, 'date');
-        const sorted = [...source].sort((a,b)=> new Date(a.date)-new Date(b.date));
+        const { currentPeriodData } = getReportData();
+        const sorted = [...currentPeriodData].sort((a,b)=> new Date(a.date)-new Date(b.date));
         const totalIncome = sorted.filter(t=>t.type==='income').reduce((s,t)=>s+(t.amount||0),0);
         const totalExpense = sorted.filter(t=>t.type==='expense').reduce((s,t)=>s+(t.amount||0),0);
         const summaryData = [["BÁO CÁO TỔNG QUAN"], [],["Khoản mục", "Số tiền"],["Tổng Thu", totalIncome],["Tổng Chi", totalExpense],["Lợi Nhuận", totalIncome-totalExpense]];
