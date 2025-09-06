@@ -1019,18 +1019,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleProductSelection() {
         const selectedId = productSelect.value;
-        transactionQuantityInput.value = 1;
-        if (selectedId) {
-            const product = products.find(p => p.id === selectedId);
-            if (product) {
-                descriptionInput.value = product.name;
-                amountInput.value = product.sellingPrice;
-                descriptionInput.readOnly = true;
-            }
-        } else {
+
+        if (!selectedId) {
             descriptionInput.readOnly = false;
+            return;
         }
+
+        const product = products.find(p => p.id === selectedId);
+        if (!product) return;
+
+        // Chỉ mặc định = 1 nếu chưa có hoặc không hợp lệ
+        const current = +transactionQuantityInput.value;
+        const qty = Number.isFinite(current) && current > 0 ? current : 1;
+        if (!Number.isFinite(current) || current <= 0) {
+            transactionQuantityInput.value = 1;
+        }
+
+        // Cập nhật mô tả & số tiền theo số lượng
+        descriptionInput.value = qty > 1 ? `${qty} ${product.name}` : product.name;
+        amountInput.value = product.sellingPrice * qty;
+        descriptionInput.readOnly = true;
     }
+
     
     function handleQuantityChange() {
         const selectedId = productSelect.value;
@@ -1039,6 +1049,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const quantity = +transactionQuantityInput.value;
             if (product && quantity > 0) {
                 amountInput.value = product.sellingPrice * quantity;
+                // thêm:
+                descriptionInput.value = quantity > 1 ? `${quantity} ${product.name}` : product.name;
             }
         }
     }
