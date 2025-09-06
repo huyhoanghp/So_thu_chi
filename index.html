@@ -263,7 +263,7 @@
                             </div>
                         </div>
 
-                        <!-- Product Selection Section -->
+                        <!-- Product Selection Section (Sales) -->
                         <div id="product-section" class="hidden space-y-4 mb-4 border-t pt-4 mt-4">
                             <h3 class="font-semibold text-gray-700">Thông tin bán hàng</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -279,6 +279,24 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Import Section (Purchases) -->
+                        <div id="import-section" class="hidden space-y-4 mb-4 border-t pt-4 mt-4">
+                            <h3 class="font-semibold text-gray-700">Thông tin nhập hàng</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="import-product-select" class="block font-semibold mb-2 text-sm">Chọn sản phẩm</label>
+                                    <select id="import-product-select" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="">-- Chọn sản phẩm --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="import-quantity" class="block font-semibold mb-2 text-sm">Số lượng nhập</label>
+                                    <input type="number" id="import-quantity" value="1" min="1" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
@@ -450,6 +468,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const productSection = document.getElementById('product-section');
     const productSelect = document.getElementById('product-select');
     const transactionQuantityInput = document.getElementById('transaction-quantity');
+    
+    // Import Section in Transaction Form
+    const importSection = document.getElementById('import-section');
+    const importProductSelect = document.getElementById('import-product-select');
+    const importQuantityInput = document.getElementById('import-quantity');
+
 
     // Product Modal
     const productModal = document.getElementById('product-modal');
@@ -762,6 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainForm.reset();
         descriptionInput.readOnly = false;
         productSelect.value = '';
+        importProductSelect.value = '';
 
         const type = data.type || 'income';
         formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
@@ -781,10 +806,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 descriptionInput.value = data.description || '';
                 amountInput.value = data.amount || '';
                 dateInput.value = data.date || new Date().toISOString().split('T')[0];
-                categorySelect.value = data.category || (type === 'income' ? 'Bán hàng' : '');
+                categorySelect.value = data.category || (type === 'income' ? 'Bán hàng' : 'Chi phí khác');
                 customerNameInput.value = data.customerName || '';
                 customerNoteInput.value = data.customerNote || '';
                 transactionQuantityInput.value = data.quantity || 1;
+                importQuantityInput.value = data.quantity || 1;
                 break;
             case 'editPlan':
             case 'editTransaction':
@@ -797,6 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 customerNameInput.value = data.customerName || '';
                 customerNoteInput.value = data.customerNote || '';
                 transactionQuantityInput.value = data.quantity || 1;
+                importQuantityInput.value = data.quantity || 1;
                 break;
         }
 
@@ -804,10 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Handle product selection logic
         if (data.productId) {
-            productSelect.value = data.productId;
-            handleProductSelection(true); // Pass true to indicate it's from AI
+            if (type === 'income') {
+                productSelect.value = data.productId;
+                handleProductSelection(true); // Pass true to indicate it's from AI
+            } else if (type === 'expense' && data.category === 'Nhập hàng') {
+                importProductSelect.value = data.productId;
+                handleImportProductSelection(true);
+            }
         }
-
+        
         formModal.classList.remove('hidden');
         setTimeout(() => formModal.classList.remove('opacity-0'), 10);
     }
@@ -876,69 +908,83 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleFormSubmit(e) {
         e.preventDefault();
         const type = formModal.querySelector('input[name="type"]:checked').value;
-        const productId = productSelect.value;
-        const quantity = +transactionQuantityInput.value;
+        const category = categorySelect.value;
+        
+        let productId = null;
+        let quantity = null;
+
+        if (type === 'income' && productSelect.value) {
+            productId = productSelect.value;
+            quantity = +transactionQuantityInput.value;
+        } else if (type === 'expense' && category === 'Nhập hàng' && importProductSelect.value) {
+            productId = importProductSelect.value;
+            quantity = +importQuantityInput.value;
+        }
 
         const data = { 
             type: type, 
             description: descriptionInput.value.trim(), 
             amount: +amountInput.value, 
             date: dateInput.value, 
-            category: categorySelect.value, 
+            category: category, 
             customerName: customerNameInput.value.trim(), 
             customerNote: customerNoteInput.value.trim(), 
             createdAt: new Date().toISOString(),
-            productId: type === 'income' && productId ? productId : null,
-            quantity: type === 'income' && productId ? quantity : null
+            productId: productId,
+            quantity: quantity
         };
+
         if (!data.description || data.amount < 0) { return showToast("Vui lòng nhập nội dung và số tiền hợp lệ.", "error"); }
         
         const executeSave = async () => {
             try {
-                if (currentFormMode === 'addPlan') {
-                    await plansCollection.add(data); 
-                    showToast("Đã thêm kế hoạch thành công!");
-                } else if (currentFormMode === 'addTransaction') {
-                    await transactionsCollection.add(data);
-                    if (data.productId && data.quantity > 0) {
-                        const productRef = productsCollection.doc(data.productId);
-                        await productRef.update({ stock: firebase.firestore.FieldValue.increment(-data.quantity) });
+                if (currentFormMode.includes('add')) {
+                    if (currentFormMode === 'addPlan') { 
+                        await plansCollection.add(data); 
+                        showToast("Đã thêm kế hoạch thành công!");
+                    } else { // addTransaction
+                        await transactionsCollection.add(data);
+                        if (data.productId && data.quantity > 0) {
+                            const stockChange = data.type === 'income' ? -data.quantity : data.quantity;
+                            await productsCollection.doc(data.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
+                        }
+                        showToast("Đã thêm giao dịch thành công!");
                     }
-                    showToast("Đã thêm giao dịch thành công!");
-                } else if (currentFormMode === 'editPlan') {
-                    delete data.createdAt;
-                    await plansCollection.doc(editingIdInput.value).update(data); 
-                    showToast("Đã cập nhật kế hoạch!");
-                } else if (currentFormMode === 'editTransaction') {
-                    const beforeTx = currentEditingTransaction;
-                    const afterTxData = data;
-                    const txDocRef = transactionsCollection.doc(editingIdInput.value);
+                } else { // Edit mode
+                    if (currentFormMode === 'editPlan') {
+                        delete data.createdAt;
+                        await plansCollection.doc(editingIdInput.value).update(data); 
+                        showToast("Đã cập nhật kế hoạch!");
+                    } else if (currentFormMode === 'editTransaction') {
+                        const beforeTx = currentEditingTransaction;
+                        const afterTxData = data;
+                        const txDocRef = transactionsCollection.doc(editingIdInput.value);
 
-                    // Calculate stock changes
-                    const oldProductId = beforeTx ? beforeTx.productId : null;
-                    const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
-                    const newProductId = afterTxData.productId;
-                    const newQuantity = afterTxData.quantity || 0;
+                        const oldProductId = beforeTx ? beforeTx.productId : null;
+                        const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
+                        const oldType = beforeTx ? beforeTx.type : null;
+                        const newProductId = afterTxData.productId;
+                        const newQuantity = afterTxData.quantity || 0;
+                        const newType = afterTxData.type;
 
-                    const batch = db.batch();
-                    batch.update(txDocRef, afterTxData);
+                        const batch = db.batch();
+                        batch.update(txDocRef, afterTxData);
 
-                    let stockDifference = 0;
-                    if (oldProductId !== newProductId) {
-                        if (oldProductId) { // Add back old stock
-                           batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(oldQuantity) });
+                        if (oldProductId !== newProductId || oldQuantity !== newQuantity || oldType !== newType) {
+                            // Revert old stock change
+                            if (oldProductId && oldQuantity > 0) {
+                                const oldStockChange = oldType === 'income' ? oldQuantity : -oldQuantity;
+                                batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(oldStockChange) });
+                            }
+                            // Apply new stock change
+                            if (newProductId && newQuantity > 0) {
+                                const newStockChange = newType === 'income' ? -newQuantity : newQuantity;
+                                batch.update(productsCollection.doc(newProductId), { stock: firebase.firestore.FieldValue.increment(newStockChange) });
+                            }
                         }
-                        if (newProductId) { // Deduct new stock
-                           batch.update(productsCollection.doc(newProductId), { stock: firebase.firestore.FieldValue.increment(-newQuantity) });
-                        }
-                    } else if (oldProductId) { // Same product, different quantity
-                        stockDifference = oldQuantity - newQuantity;
-                        if (stockDifference !== 0) {
-                           batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(stockDifference) });
-                        }
+                        await batch.commit();
+                        showToast("Đã cập nhật giao dịch và kho hàng!");
                     }
-                    await batch.commit();
-                    showToast("Đã cập nhật giao dịch và kho hàng!");
                 }
                 closeFormModal();
             } catch (err) { 
@@ -946,7 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        if (currentFormMode === 'addTransaction' && data.productId && data.quantity > 0) {
+        if (currentFormMode === 'addTransaction' && data.productId && data.quantity > 0 && data.type === 'income') {
             const product = products.find(p => p.id === data.productId);
             if (product && data.quantity > product.stock) {
                 openConfirmationModal(
@@ -978,8 +1024,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try { 
                 await transactionsCollection.doc(tx.id).delete();
                 if (tx.productId && tx.quantity > 0) {
-                    const productRef = productsCollection.doc(tx.productId);
-                    await productRef.update({ stock: firebase.firestore.FieldValue.increment(tx.quantity) });
+                    const stockChange = tx.type === 'income' ? tx.quantity : -tx.quantity;
+                    await productsCollection.doc(tx.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
                 }
                 showToast("Đã xóa giao dịch."); 
             } catch(e) { 
@@ -1000,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const plan = JSON.parse(completePlanIdInput.value);
         const actualAmount = +completePlanAmountInput.value;
-        if (actualAmount <= 0) return showToast("Vui lòng nhập số tiền thực tế hợp lệ.", "error");
+        if (actualAmount <= 0 && plan.type !== 'expense') return showToast("Vui lòng nhập số tiền thực tế hợp lệ.", "error");
         
         const newTransaction = { ...plan, amount: actualAmount, date: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() };
         delete newTransaction.id;
@@ -1008,17 +1054,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const batch = db.batch();
             
-            // 1. Create new transaction
             const newTxRef = transactionsCollection.doc();
             batch.set(newTxRef, newTransaction);
             
-            // 2. Update stock if it was a product sale
             if (newTransaction.productId && newTransaction.quantity > 0) {
+                const stockChange = newTransaction.type === 'income' ? -newTransaction.quantity : newTransaction.quantity;
                 const productRef = productsCollection.doc(newTransaction.productId);
-                batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(-newTransaction.quantity) });
+                batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(stockChange) });
             }
             
-            // 3. Delete the plan
             const planRef = plansCollection.doc(plan.id);
             batch.delete(planRef);
             
@@ -1049,14 +1093,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatDisplayDateTime(createdAt, date) { const timestamp = createdAt || date; if (!timestamp) return 'Không có ngày'; const d = new Date(timestamp); const dateStr = d.toLocaleDateString('vi-VN'); const timeStr = d.toLocaleTimeString('vi-VN'); return `${dateStr} ${timeStr}`; }
     function showToast(message, type = "success") { clearTimeout(toastTimeout); toastMessage.textContent = message; toast.className = toast.className.replace(/bg-\w+-500/, ''); toast.classList.add(type === "success" ? "bg-green-500" : "bg-red-500"); toast.classList.remove("opacity-0", "translate-y-10"); toastTimeout = setTimeout(() => { toast.classList.add("opacity-0", "translate-y-10"); }, 3000); }
     
-    function populateProductDropdown() {
-        const currentVal = productSelect.value;
-        let options = '<option value="">-- Ghi nhận thủ công --</option>';
+    function populateProductDropdown(selectElement) {
+        const currentVal = selectElement.value;
+        let options = `<option value="">${selectElement.id === 'product-select' ? '-- Ghi nhận thủ công --' : '-- Chọn sản phẩm --'}</option>`;
         products.forEach(p => {
             options += `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`;
         });
-        productSelect.innerHTML = options;
-        productSelect.value = currentVal;
+        selectElement.innerHTML = options;
+        selectElement.value = currentVal;
     }
 
     function handleProductSelection(fromAI = false) {
@@ -1064,12 +1108,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedId) {
             const product = products.find(p => p.id === selectedId);
             if (product) {
-                if (!fromAI) { // Only reset quantity if user manually selects
+                if (!fromAI) {
                     transactionQuantityInput.value = 1;
                 }
                 descriptionInput.value = product.name;
                 descriptionInput.readOnly = true;
-                handleQuantityChange(); // Recalculate amount based on current quantity
+                handleQuantityChange();
             }
         } else {
             descriptionInput.readOnly = false;
@@ -1087,21 +1131,56 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+    
+    function handleImportProductSelection(fromAI = false) {
+        const selectedId = importProductSelect.value;
+        if (selectedId) {
+            const product = products.find(p => p.id === selectedId);
+            if (product) {
+                if (!fromAI) {
+                   importQuantityInput.value = 1;
+                }
+                descriptionInput.value = `Nhập hàng: ${product.name}`;
+                if (product.costPrice > 0) {
+                    amountInput.value = product.costPrice * (+importQuantityInput.value);
+                }
+            }
+        }
+    }
+
+    function handleImportQuantityChange() {
+        const selectedId = importProductSelect.value;
+         if (selectedId) {
+            const product = products.find(p => p.id === selectedId);
+            const quantity = +importQuantityInput.value;
+            if (product && quantity > 0 && product.costPrice > 0) {
+                amountInput.value = product.costPrice * quantity;
+            }
+        }
+    }
+
 
     function updateFormFieldsVisibility() { 
         const selectedType = formModal.querySelector('input[name="type"]:checked').value; 
+        const selectedCategory = categorySelect.value;
+
         customerNameField.classList.toggle('hidden', selectedType !== 'income'); 
+        productSection.classList.toggle('hidden', selectedType !== 'income');
+        importSection.classList.toggle('hidden', !(selectedType === 'expense' && selectedCategory === 'Nhập hàng'));
         
         if (selectedType === 'income') {
-            productSection.classList.remove('hidden');
-            populateProductDropdown();
-        } else {
-            productSection.classList.add('hidden');
+            populateProductDropdown(productSelect);
+        } else if (selectedType === 'expense' && selectedCategory === 'Nhập hàng') {
+            populateProductDropdown(importProductSelect);
         }
     }
     function updateCategoryOptions() { 
         const selectedType = formModal.querySelector('input[name="type"]:checked').value; 
+        const currentCategory = categorySelect.value;
         categorySelect.innerHTML = categories[selectedType].map(c => `<option value="${c}">${c}</option>`).join(''); 
+        if (categories[selectedType].includes(currentCategory)) {
+            categorySelect.value = currentCategory;
+        }
         updateFormFieldsVisibility(); 
     }
     function filterData(data, filterType, searchTerm = '') {
@@ -1168,12 +1247,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const todayStr = today.toISOString().split('T')[0];
         const tomorrowStr = tomorrow.toISOString().split('T')[0];
         const dateInTwoDaysStr = dateInTwoDays.toISOString().split('T')[0];
-
+        
+        const expenseCategoriesStr = categories.expense.join(', ');
         const prompt = `You are an expert Vietnamese financial assistant. Your task is to extract detailed information from a user's text and format it into a JSON object.
 
 CONTEXT:
 - The current date is: ${todayStr}.
-- Available product names for matching (mostly for sales/income): [${productNames.join(', ')}].
+- Available product names (for sales/income): [${productNames.join(', ')}].
+- Available expense categories: [${expenseCategoriesStr}].
 
 RULES & EXAMPLES:
 1.  **entryType**: MUST be "plan" for future intent, otherwise "transaction".
@@ -1192,6 +1273,7 @@ RULES & EXAMPLES:
 5.  **If type is "expense" or it's a simple income without a product**:
     - **description**: MUST be the main subject of the transaction. ("mua rau 20k" -> "mua rau").
     - **amount**: MUST extract the monetary value. ("20k" -> 20000, "50.000d" -> 50000).
+    - **category**: For expenses, try to match the description to one of the available expense categories.
 6.  **customerName**: Extract the customer's name ("giao cho chị Nhung" -> "chị Nhung").
 7.  **customerNote**: Extract all other relevant details ("giao 16h tại nhà khách" -> "Giao 16h tại nhà khách").
 
@@ -1211,6 +1293,7 @@ USER TEXT: "${textInput}"`;
                             "type": { "type": "STRING" },
                             "description": { "type": "STRING" },
                             "amount": { "type": "NUMBER" },
+                            "category": {"type": "STRING"},
                             "productName": { "type": "STRING" },
                             "quantity": { "type": "NUMBER" },
                             "discountPercentage": { "type": "NUMBER" },
@@ -1240,7 +1323,6 @@ USER TEXT: "${textInput}"`;
                         if (parsedData.discountPercentage > 0) {
                             finalAmount *= (1 - parsedData.discountPercentage / 100);
                         }
-                        // Overwrite amount only if it wasn't extracted directly by AI for expenses
                         if (!parsedData.amount) {
                            parsedData.amount = finalAmount;
                         }
@@ -1443,7 +1525,8 @@ USER TEXT: "${textInput}"`;
     confirmActionBtn.addEventListener('click', () => { if(confirmAction) confirmAction(); closeConfirmationModal(); });
     
     typeRadios.forEach(r => r.addEventListener('change', updateCategoryOptions));
-    
+    categorySelect.addEventListener('change', updateFormFieldsVisibility);
+
     tabPlan.addEventListener('click', () => switchTab('plan'));
     tabProducts.addEventListener('click', () => switchTab('products'));
     tabHistory.addEventListener('click', () => switchTab('history'));
@@ -1460,6 +1543,9 @@ USER TEXT: "${textInput}"`;
     
     productSelect.addEventListener('change', () => handleProductSelection(false));
     transactionQuantityInput.addEventListener('input', handleQuantityChange);
+    importProductSelect.addEventListener('change', () => handleImportProductSelection(false));
+    importQuantityInput.addEventListener('input', handleImportQuantityChange);
+
 
     const fabToggle = () => {
         fabActions.classList.toggle('opacity-0');
