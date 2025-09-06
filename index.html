@@ -599,14 +599,13 @@ document.addEventListener('DOMContentLoaded', () => {
             plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
             renderAll();
         }, err => showError("Không thể tải danh sách kế hoạch: " + err.message));
-        
+
         productsCollection.onSnapshot(snapshot => {
             products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
             renderAll();
         }, err => showError("Không thể tải danh sách sản phẩm: " + err.message));
-    }
-    
-    function renderAll() {
+
+function renderAll() {
         const dateFilteredTransactions = filterData(transactions, 'date');
         const searchedPlans = filterData(plans, 'search', searchPlanInput.value);
         const searchedTransactions = filterData(dateFilteredTransactions, 'search', searchHistoryInput.value);
@@ -759,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const type = data.type || 'income';
         formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
         updateCategoryOptions();
-
+        
         switch(mode) {
             case 'addPlan':
             case 'addTransaction':
@@ -792,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle product selection logic
         if (data.productId) {
             productSelect.value = data.productId;
-            handleProductSelection(true); // Pass true to indicate it's from AI
+            handleProductSelection(); // Trigger selection handler to populate fields
         }
 
         formModal.classList.remove('hidden');
@@ -1017,18 +1016,15 @@ document.addEventListener('DOMContentLoaded', () => {
         productSelect.value = currentVal;
     }
 
-    function handleProductSelection(fromAI = false) {
+    function handleProductSelection() {
         const selectedId = productSelect.value;
+        transactionQuantityInput.value = 1;
         if (selectedId) {
             const product = products.find(p => p.id === selectedId);
             if (product) {
-                if (!fromAI) { // Only reset quantity if user manually selects
-                    transactionQuantityInput.value = 1;
-                }
                 descriptionInput.value = product.name;
-                amountInput.value = product.sellingPrice * (+transactionQuantityInput.value);
+                amountInput.value = product.sellingPrice;
                 descriptionInput.readOnly = true;
-                handleQuantityChange(); // Recalculate amount based on current quantity
             }
         } else {
             descriptionInput.readOnly = false;
@@ -1042,7 +1038,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const quantity = +transactionQuantityInput.value;
             if (product && quantity > 0) {
                 amountInput.value = product.sellingPrice * quantity;
-                descriptionInput.value = quantity > 1 ? `${quantity} ${product.name}` : product.name;
             }
         }
     }
@@ -1118,16 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.querySelector('button[type="submit"]').disabled = true;
 
         const productNames = products.map(p => p.name);
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const dateInTwoDays = new Date(today);
-        dateInTwoDays.setDate(dateInTwoDays.getDate() + 2);
-
-        const todayStr = today.toISOString().split('T')[0];
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        const dateInTwoDaysStr = dateInTwoDays.toISOString().split('T')[0];
-
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
         const prompt = `You are an expert Vietnamese financial assistant. Your task is to extract detailed information from a user's text and format it into a JSON object.
 
 CONTEXT:
@@ -1139,12 +1125,12 @@ RULES & EXAMPLES:
     - "ngày mai bán", "2 ngày nữa giao" -> "plan"
     - "bán hôm qua", "thu tiền" -> "transaction"
 2.  **date**: MUST determine the exact date based on the current date and return it in YYYY-MM-DD format.
-    - "hôm nay" -> "${todayStr}"
-    - "ngày mai" -> "${tomorrowStr}"
-    - "2 ngày nữa" -> "${dateInTwoDaysStr}"
-    - If no date is mentioned, use today's date: "${todayStr}".
+    - "hôm nay" -> ${todayStr}
+    - "ngày mai" -> (Calculate tomorrow's date)
+    - "2 ngày nữa" -> (Calculate date in 2 days)
+    - If no date is mentioned, use today's date: ${todayStr}.
 3.  **productName**: MUST find the closest product name from the 'Available Products' list.
-4.  **quantity** (CRITICAL): MUST extract the quantity. The number just before the productName (or its unit like 'ly', 'que') is the quantity.
+4.  **quantity**: MUST extract the quantity. The number just before the productName is the quantity.
     - "bán 10 ly kem" -> 10
     - "2 trà đá" -> 2
     - Default to 1 if not specified.
@@ -1171,7 +1157,7 @@ USER TEXT: "${textInput}"`;
                         properties: { 
                             "entryType": { "type": "STRING" },
                             "date": { "type": "STRING", "format": "date" },
-                            "productName": { "type": "STRING" },
+                            "productName": { "type": "STRING", "enum": productNames },
                             "quantity": { "type": "NUMBER" },
                             "discountPercentage": { "type": "NUMBER" },
                             "customerName": { "type": "STRING" },
@@ -1416,7 +1402,7 @@ USER TEXT: "${textInput}"`;
     exportXlsxBtn.addEventListener('click', exportToXLSX); 
     chatForm.addEventListener('submit', handleAiChatSubmit);
     
-    productSelect.addEventListener('change', () => handleProductSelection(false));
+    productSelect.addEventListener('change', handleProductSelection);
     transactionQuantityInput.addEventListener('input', handleQuantityChange);
 
     const fabToggle = () => {
