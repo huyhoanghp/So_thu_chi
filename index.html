@@ -977,10 +977,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const plan = JSON.parse(completePlanIdInput.value);
         const actualAmount = +completePlanAmountInput.value;
         if (actualAmount <= 0) return showToast("Vui lòng nhập số tiền thực tế hợp lệ.", "error");
+        
         const newTransaction = { ...plan, amount: actualAmount, date: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() };
         delete newTransaction.id;
+        
         try {
             await transactionsCollection.add(newTransaction);
+            // ADDED: Stock deduction logic when completing a plan
+            if (newTransaction.productId && newTransaction.quantity > 0) {
+                const productRef = productsCollection.doc(newTransaction.productId);
+                await db.runTransaction(async (transaction) => {
+                    const productDoc = await transaction.get(productRef);
+                    if (!productDoc.exists) { throw "Sản phẩm trong kế hoạch không tồn tại."; }
+                    const newStock = productDoc.data().stock - newTransaction.quantity;
+                    transaction.update(productRef, { stock: newStock });
+                });
+            }
             await plansCollection.doc(plan.id).delete();
             showToast("Đã hoàn thành kế hoạch!");
             closeCompletePlanModal();
@@ -1026,7 +1038,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     transactionQuantityInput.value = 1;
                 }
                 descriptionInput.value = product.name;
-                amountInput.value = product.sellingPrice * (+transactionQuantityInput.value);
                 descriptionInput.readOnly = true;
                 handleQuantityChange(); // Recalculate amount based on current quantity
             }
