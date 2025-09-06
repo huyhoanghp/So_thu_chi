@@ -277,15 +277,7 @@
                                     <label for="transaction-quantity" class="block font-semibold mb-2 text-sm">Số lượng bán</label>
                                     <input type="number" id="transaction-quantity" value="1" min="1" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
-                            
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-    <div>
-        <label for="discount-input" class="block font-semibold mb-2">Chiết khấu % (nếu có)</label>
-        <input type="number" id="discount-input" placeholder="VD: 25" min="0" max="100" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-    </div>
-    <div></div>
-</div>
-</div>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -447,8 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editingIdInput = document.getElementById('editing-id');
     const descriptionInput = document.getElementById('description');
     const amountInput = document.getElementById('amount');
-    const discountInput = document.getElementById('discount-input');
-const dateInput = document.getElementById('date');
+    const dateInput = document.getElementById('date');
     const categorySelect = document.getElementById('category');
     const typeRadios = formModal.querySelectorAll('input[name="type"]');
     const customerNameField = document.getElementById('customer-name-field');
@@ -759,72 +750,7 @@ const dateInput = document.getElementById('date');
         return item;
     }
     
-    
-function openFormModal(mode, data = {}) {
-    currentFormMode = mode;
-    mainForm.reset();
-    descriptionInput.readOnly = false;
-    productSelect.value = '';
-
-    const type = data.type || 'income';
-    formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
-    updateCategoryOptions();
-
-    switch(mode) {
-        case 'addPlan':
-        case 'addTransaction':
-            modalTitle.textContent = mode === 'addPlan' ? 'Thêm Kế Hoạch Mới' : 'Thêm Giao Dịch Nhanh';
-            editingIdInput.value = '';
-            descriptionInput.value = data.description || '';
-
-            // Preserve amount if AI provided it (mark form as prefilled)
-            if (data.amount !== undefined && data.amount !== null && data.amount !== '') {
-                amountInput.value = data.amount;
-                if (mainForm) mainForm.dataset.prefilledAmount = 'true';
-            } else {
-                amountInput.value = data.amount || '';
-            }
-
-            dateInput.value = data.date || new Date().toISOString().split('T')[0];
-            categorySelect.value = data.category || (type === 'income' ? 'Bán hàng' : '');
-            customerNameInput.value = data.customerName || '';
-            customerNoteInput.value = data.customerNote || '';
-            transactionQuantityInput.value = data.quantity || 1;
-            // If AI included a discount percentage, fill it
-            if (data.discountPercentage !== undefined) {
-                try { discountInput.value = data.discountPercentage; } catch(e) {}
-            }
-            break;
-        case 'editPlan':
-        case 'editTransaction':
-            modalTitle.textContent = mode === 'editPlan' ? 'Chỉnh Sửa Kế Hoạch' : 'Chỉnh Sửa Giao Dịch';
-            editingIdInput.value = data.id || '';
-            descriptionInput.value = data.description || '';
-            amountInput.value = data.amount || '';
-            dateInput.value = data.date || '';
-            categorySelect.value = data.category || '';
-            customerNameInput.value = data.customerName || '';
-            customerNoteInput.value = data.customerNote || '';
-            transactionQuantityInput.value = data.quantity || 1;
-            break;
-    }
-
-    updateFormFieldsVisibility();
-
-    // Handle product selection logic
-    if (data.productId) {
-        productSelect.value = data.productId;
-        handleProductSelection(); // Trigger selection handler to populate fields
-        // Clear the prefilled flag shortly after to allow further manual edits to take effect
-        if (mainForm && mainForm.dataset.prefilledAmount === 'true') {
-            setTimeout(() => { try { delete mainForm.dataset.prefilledAmount; } catch(e){} }, 300);
-        }
-    }
-
-    formModal.classList.remove('hidden');
-    setTimeout(() => formModal.classList.remove('opacity-0'), 10);
-}
-) {
+    function openFormModal(mode, data = {}) {
         currentFormMode = mode;
         mainForm.reset();
         descriptionInput.readOnly = false;
@@ -833,7 +759,7 @@ function openFormModal(mode, data = {}) {
         const type = data.type || 'income';
         formModal.querySelector(`input[name="type"][value="${type}"]`).checked = true;
         updateCategoryOptions();
-        
+
         switch(mode) {
             case 'addPlan':
             case 'addTransaction':
@@ -866,7 +792,7 @@ function openFormModal(mode, data = {}) {
         // Handle product selection logic
         if (data.productId) {
             productSelect.value = data.productId;
-            handleProductSelection(); // Trigger selection handler to populate fields
+            handleProductSelection(true); // Pass true to indicate it's from AI
         }
 
         formModal.classList.remove('hidden');
@@ -1091,65 +1017,35 @@ function openFormModal(mode, data = {}) {
         productSelect.value = currentVal;
     }
 
-    
-function handleProductSelection() {
-    const selectedId = productSelect.value;
-
-    if (!selectedId) {
-        descriptionInput.readOnly = false;
-        return;
-    }
-
-    const product = products.find(p => p.id === selectedId);
-    if (!product) return;
-
-    const current = Number(transactionQuantityInput.value);
-    const qty = Number.isFinite(current) && current > 0 ? current : 1;
-    transactionQuantityInput.value = qty;
-
-    // If the form was prefilled with an amount (likely from AI that already applied discount), keep it.
-    if (mainForm && mainForm.dataset.prefilledAmount === 'true' && amountInput.value) {
-        descriptionInput.value = qty > 1 ? `${qty} ${product.name}` : product.name;
-        descriptionInput.readOnly = true;
-        // We leave the prefilled flag to be cleared by openFormModal's timeout; don't clear it here
-        return;
-    }
-
-    // Otherwise compute amount normally (apply inline discount if present on the form)
-    let computedAmount = product.sellingPrice * qty;
-    const disc = (typeof discountInput !== 'undefined') ? Number(discountInput.value) || 0 : 0;
-    if (disc > 0) computedAmount = Math.round(computedAmount * (1 - disc / 100));
-
-    // Update description & amount according to quantity
-    descriptionInput.value = qty > 1 ? `${qty} ${product.name}` : product.name;
-    amountInput.value = computedAmount;
-    descriptionInput.readOnly = true;
-}
-
-
-    
-    
-function handleQuantityChange() {
-    const selectedId = productSelect.value;
-    const quantity = Number(transactionQuantityInput.value) || 0;
-    if (selectedId) {
-        const product = products.find(p => p.id === selectedId);
-        if (product && quantity > 0) {
-            // If the form was prefilled by AI with a computed amount, changing quantity should
-            // update the amount proportionally only if the prefilled flag is NOT set.
-            const prefilled = mainForm && mainForm.dataset.prefilledAmount === 'true';
-            // Recompute using sellingPrice and discount input if present
-            let computed = product.sellingPrice * quantity;
-            const disc = (typeof discountInput !== 'undefined') ? Number(discountInput.value) || 0 : 0;
-            if (disc > 0) computed = Math.round(computed * (1 - disc / 100));
-            amountInput.value = computed;
-            // If it was prefilled, clear the flag because user manually changed quantity
-            if (prefilled) { try { delete mainForm.dataset.prefilledAmount; } catch(e){} }
-            descriptionInput.value = quantity > 1 ? `${quantity} ${product.name}` : product.name;
+    function handleProductSelection(fromAI = false) {
+        const selectedId = productSelect.value;
+        if (selectedId) {
+            const product = products.find(p => p.id === selectedId);
+            if (product) {
+                if (!fromAI) { // Only reset quantity if user manually selects
+                    transactionQuantityInput.value = 1;
+                }
+                descriptionInput.value = product.name;
+                amountInput.value = product.sellingPrice * (+transactionQuantityInput.value);
+                descriptionInput.readOnly = true;
+                handleQuantityChange(); // Recalculate amount based on current quantity
+            }
+        } else {
+            descriptionInput.readOnly = false;
         }
     }
-}
-
+    
+    function handleQuantityChange() {
+        const selectedId = productSelect.value;
+        if (selectedId) {
+            const product = products.find(p => p.id === selectedId);
+            const quantity = +transactionQuantityInput.value;
+            if (product && quantity > 0) {
+                amountInput.value = product.sellingPrice * quantity;
+                descriptionInput.value = quantity > 1 ? `${quantity} ${product.name}` : product.name;
+            }
+        }
+    }
 
     function updateFormFieldsVisibility() { 
         const selectedType = formModal.querySelector('input[name="type"]:checked').value; 
@@ -1310,24 +1206,7 @@ USER TEXT: "${textInput}"`;
                     }
                 }
                 
-                
-// --- Ensure discount & amount are computed from selected product if AI didn't provide a raw amount ---
-if (parsedData && parsedData.productId) {
-    try {
-        const prod = products.find(p => p.id === parsedData.productId);
-        const quantity = Number(parsedData.quantity) || 1;
-        const disc = Number(parsedData.discountPercentage) || 0;
-        if (prod) {
-            let finalAmount = prod.sellingPrice * quantity;
-            if (disc > 0) finalAmount = Math.round(finalAmount * (1 - disc/100));
-            if (!parsedData.amount) parsedData.amount = finalAmount;
-            if (!parsedData.description) parsedData.description = `${quantity > 1 ? quantity + ' ' : ''}${prod.name}`;
-        } else {
-            if (parsedData.amount) parsedData.amount = Number(parsedData.amount);
-        }
-    } catch(e) { console.warn('Error computing AI parsed amount:', e); }
-}
-closeAiEntryModal();
+                closeAiEntryModal();
                 if (parsedData.entryType === 'plan') {
                     openFormModal('addPlan', parsedData);
                 } else {
@@ -1537,7 +1416,7 @@ closeAiEntryModal();
     exportXlsxBtn.addEventListener('click', exportToXLSX); 
     chatForm.addEventListener('submit', handleAiChatSubmit);
     
-    productSelect.addEventListener('change', handleProductSelection);
+    productSelect.addEventListener('change', () => handleProductSelection(false));
     transactionQuantityInput.addEventListener('input', handleQuantityChange);
 
     const fabToggle = () => {
@@ -1558,3 +1437,4 @@ closeAiEntryModal();
 </script>
 </body>
 </html>
+
