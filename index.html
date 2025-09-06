@@ -1173,31 +1173,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 CONTEXT:
 - The current date is: ${todayStr}.
-- Available product names for matching: [${productNames.join(', ')}].
+- Available product names for matching (mostly for sales/income): [${productNames.join(', ')}].
 
 RULES & EXAMPLES:
 1.  **entryType**: MUST be "plan" for future intent, otherwise "transaction".
     - "ngày mai bán", "2 ngày nữa giao" -> "plan"
-    - "bán hôm qua", "thu tiền" -> "transaction"
+    - "bán hôm qua", "thu tiền", "mua rau" -> "transaction"
 2.  **date**: MUST determine the exact date based on the current date and return it in YYYY-MM-DD format.
     - "hôm nay" -> "${todayStr}"
     - "ngày mai" -> "${tomorrowStr}"
     - "2 ngày nữa" -> "${dateInTwoDaysStr}"
     - If no date is mentioned, use today's date: "${todayStr}".
-3.  **productName**: MUST find the closest product name from the 'Available Products' list.
-4.  **quantity** (CRITICAL): MUST extract the quantity. The number just before the productName (or its unit like 'ly', 'que') is the quantity.
-    - "bán 10 ly kem" -> 10
-    - "2 trà đá" -> 2
-    - Default to 1 if not specified.
-5.  **customerName**: MUST extract the customer's name.
-    - "giao cho chị Nhung" -> "chị Nhung"
-6.  **customerNote**: MUST extract all other relevant details like time, location, or special requests.
-    - "giao 16h tại nhà khách" -> "Giao 16h tại nhà khách"
-7.  **discountPercentage**: MUST extract any percentage discount.
-    - "chiết khấu 15%" -> 15
-8.  **type**: MUST be "income" for sales ('bán', 'thu'), "expense" for purchases ('mua', 'nhập').
-
-IMPORTANT: Do NOT include an 'amount' in the JSON. The app will calculate it.
+3.  **type**: MUST be "income" for sales ('bán', 'thu'), or "expense" for purchases ('mua', 'chi', 'trả tiền').
+4.  **If type is "income" and a product is mentioned**:
+    - **productName**: MUST find the closest product name from the 'Available Products' list.
+    - **quantity** (CRITICAL): MUST extract the quantity. The number just before the productName is the quantity. Default to 1. ("bán 10 ly kem" -> 10).
+    - **discountPercentage**: MUST extract any percentage discount ("chiết khấu 15%" -> 15).
+5.  **If type is "expense" or it's a simple income without a product**:
+    - **description**: MUST be the main subject of the transaction. ("mua rau 20k" -> "mua rau").
+    - **amount**: MUST extract the monetary value. ("20k" -> 20000, "50.000d" -> 50000).
+6.  **customerName**: Extract the customer's name ("giao cho chị Nhung" -> "chị Nhung").
+7.  **customerNote**: Extract all other relevant details ("giao 16h tại nhà khách" -> "Giao 16h tại nhà khách").
 
 USER TEXT: "${textInput}"`;
 
@@ -1212,12 +1208,14 @@ USER TEXT: "${textInput}"`;
                         properties: { 
                             "entryType": { "type": "STRING" },
                             "date": { "type": "STRING", "format": "date" },
+                            "type": { "type": "STRING" },
+                            "description": { "type": "STRING" },
+                            "amount": { "type": "NUMBER" },
                             "productName": { "type": "STRING" },
                             "quantity": { "type": "NUMBER" },
                             "discountPercentage": { "type": "NUMBER" },
                             "customerName": { "type": "STRING" },
-                            "customerNote": { "type": "STRING" },
-                            "type": { "type": "STRING" }
+                            "customerNote": { "type": "STRING" }
                         },
                          "required": ["entryType", "date", "type"]
                     } 
@@ -1231,19 +1229,22 @@ USER TEXT: "${textInput}"`;
             if (jsonText) {
                 const parsedData = JSON.parse(jsonText);
                 
-                // Post-process AI response
-                if (parsedData.productName) {
+                // If it's a product sale, calculate the final amount
+                if (parsedData.productName && parsedData.type === 'income') {
                     const product = products.find(p => p.name === parsedData.productName);
                     if (product) {
                         parsedData.productId = product.id;
                         const quantity = parsedData.quantity || 1;
-                        parsedData.quantity = quantity; // Ensure quantity is set for the form
+                        parsedData.quantity = quantity;
                         let finalAmount = product.sellingPrice * quantity;
                         if (parsedData.discountPercentage > 0) {
                             finalAmount *= (1 - parsedData.discountPercentage / 100);
                         }
-                        parsedData.amount = finalAmount;
-                        parsedData.description = `${quantity} ${product.name}`;
+                        // Overwrite amount only if it wasn't extracted directly by AI for expenses
+                        if (!parsedData.amount) {
+                           parsedData.amount = finalAmount;
+                        }
+                        parsedData.description = parsedData.description || `${quantity} ${product.name}`;
                     }
                 }
                 
