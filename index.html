@@ -914,30 +914,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     const afterTxData = data;
                     const txDocRef = transactionsCollection.doc(editingIdInput.value);
 
-                    // Calculate stock changes before updating
+                    // Calculate stock changes
                     const oldProductId = beforeTx ? beforeTx.productId : null;
                     const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
                     const newProductId = afterTxData.productId;
                     const newQuantity = afterTxData.quantity || 0;
 
-                    // Update transaction and stock in a batch for atomicity
                     const batch = db.batch();
                     batch.update(txDocRef, afterTxData);
 
+                    let stockDifference = 0;
                     if (oldProductId !== newProductId) {
-                        if (oldProductId && oldQuantity > 0) {
-                            const oldProductRef = productsCollection.doc(oldProductId);
-                            batch.update(oldProductRef, { stock: firebase.firestore.FieldValue.increment(oldQuantity) });
+                        if (oldProductId) { // Add back old stock
+                           batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(oldQuantity) });
                         }
-                        if (newProductId && newQuantity > 0) {
-                            const newProductRef = productsCollection.doc(newProductId);
-                            batch.update(newProductRef, { stock: firebase.firestore.FieldValue.increment(-newQuantity) });
+                        if (newProductId) { // Deduct new stock
+                           batch.update(productsCollection.doc(newProductId), { stock: firebase.firestore.FieldValue.increment(-newQuantity) });
                         }
-                    } else if (oldProductId === newProductId && oldQuantity !== newQuantity) {
-                        if (oldProductId) {
-                            const stockDifference = oldQuantity - newQuantity;
-                            const productRef = productsCollection.doc(oldProductId);
-                            batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(stockDifference) });
+                    } else if (oldProductId) { // Same product, different quantity
+                        stockDifference = oldQuantity - newQuantity;
+                        if (stockDifference !== 0) {
+                           batch.update(productsCollection.doc(oldProductId), { stock: firebase.firestore.FieldValue.increment(stockDifference) });
                         }
                     }
                     await batch.commit();
