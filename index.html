@@ -206,8 +206,8 @@
                                             <div class="relative h-64 sm:h-80 w-full"><canvas id="expense-pie-chart"></canvas></div>
                                         </div>
                                         <div>
-                                            <h3 class="text-lg font-semibold text-center mb-2">Xu hướng Chi phí</h3>
-                                            <div class="relative h-64 sm:h-80 w-full"><canvas id="expense-trend-chart"></canvas></div>
+                                            <h3 class="text-lg font-semibold text-center mb-2">Dòng tiền theo thời gian</h3>
+                                            <div class="relative h-64 sm:h-80 w-full"><canvas id="cashflow-trend-chart"></canvas></div>
                                         </div>
                                     </div>
                                 </div>
@@ -565,9 +565,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
-    let expensePieChart, expenseTrendChart;
+    let expensePieChart, cashflowTrendChart;
     const expensePieChartCtx = document.getElementById('expense-pie-chart')?.getContext('2d');
-    const expenseTrendChartCtx = document.getElementById('expense-trend-chart')?.getContext('2d');
+    const cashflowTrendChartCtx = document.getElementById('cashflow-trend-chart')?.getContext('2d');
 
     let auth, db, geminiApiKey;
     let transactionsCollection, plansCollection, productsCollection;
@@ -1252,18 +1252,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderReports() {
-        // Main calculations based on date filter
         const currentPeriodData = filterData(transactions, 'date');
-        
-        // Render all reports
         renderOverviewReport(currentPeriodData);
         renderProductPerformanceReports(currentPeriodData);
         renderInventoryReport();
     }
     
     function renderOverviewReport(currentData) {
-        // Expense Pie Chart
         if (expensePieChart) expensePieChart.destroy();
+        if (cashflowTrendChart) cashflowTrendChart.destroy();
+        
         const expenses = currentData.filter(t => t.type === 'expense');
         if (expensePieChartCtx && expenses.length > 0) {
             const expenseByCategory = expenses.reduce((acc, curr) => { 
@@ -1272,17 +1270,21 @@ document.addEventListener('DOMContentLoaded', () => {
             expensePieChart = new Chart(expensePieChartCtx, { type: 'doughnut', data: { labels: Object.keys(expenseByCategory), datasets: [{ data: Object.values(expenseByCategory), backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6'] }] }, options: { responsive: true, maintainAspectRatio: false } });
         }
 
-        // Expense Trend Chart
-        if (expenseTrendChart) expenseTrendChart.destroy();
-        if (expenseTrendChartCtx && expenses.length > 0) {
-             const expenseByDate = expenses.reduce((acc, curr) => { 
+        if (cashflowTrendChartCtx && currentData.length > 0) {
+             const dataByDate = currentData.reduce((acc, curr) => { 
                 const date = curr.date.split('T')[0]; 
-                if (!acc[date]) acc[date] = 0; 
-                acc[date] += (curr.amount || 0); 
+                if (!acc[date]) acc[date] = { income: 0, expense: 0 }; 
+                acc[date][curr.type] += (curr.amount || 0); 
                 return acc; 
             }, {});
-            const sortedDates = Object.keys(expenseByDate).sort((a,b) => new Date(a) - new Date(b));
-            expenseTrendChart = new Chart(expenseTrendChartCtx, { type: 'line', data: { labels: sortedDates, datasets: [{ label: 'Tổng Chi', data: sortedDates.map(date => expenseByDate[date]), borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false } });
+            const sortedDates = Object.keys(dataByDate).sort((a,b) => new Date(a) - new Date(b));
+            const incomeData = sortedDates.map(date => dataByDate[date].income);
+            const expenseData = sortedDates.map(date => dataByDate[date].expense);
+
+            cashflowTrendChart = new Chart(cashflowTrendChartCtx, { type: 'line', data: { labels: sortedDates, datasets: [
+                { label: 'Doanh thu', data: incomeData, borderColor: '#16a34a', backgroundColor: '#16a34a20', fill: true, tension: 0.1 },
+                { label: 'Chi phí', data: expenseData, borderColor: '#dc2626', backgroundColor: '#dc262620', fill: true, tension: 0.1 }
+            ] }, options: { responsive: true, maintainAspectRatio: false } });
         }
     }
     
