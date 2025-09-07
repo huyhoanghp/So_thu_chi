@@ -228,6 +228,12 @@
                                             <div id="top-profit-products" class="space-y-2"></div>
                                         </div>
                                     </div>
+                                    <div id="product-chart-container" class="hidden">
+                                        <h3 class="text-lg font-semibold text-center mb-2">Doanh thu sản phẩm theo ngày</h3>
+                                        <div class="relative h-64 sm:h-80 w-full">
+                                            <canvas id="product-sales-trend-chart"></canvas>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Report Content: Inventory -->
@@ -573,9 +579,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const aiThinkingIndicator = document.getElementById('ai-thinking-indicator');
-    let expensePieChart, cashflowTrendChart;
+    let expensePieChart, cashflowTrendChart, productSalesTrendChart;
     const expensePieChartCtx = document.getElementById('expense-pie-chart')?.getContext('2d');
     const cashflowTrendChartCtx = document.getElementById('cashflow-trend-chart')?.getContext('2d');
+    const productSalesTrendChartCtx = document.getElementById('product-sales-trend-chart')?.getContext('2d');
 
     let auth, db, geminiApiKey;
     let transactionsCollection, plansCollection, productsCollection;
@@ -1477,6 +1484,62 @@ document.addEventListener('DOMContentLoaded', () => {
         // Top Profit
         const topProfit = [...statsArray].sort((a, b) => b.profit - a.profit).slice(0, 5);
         document.getElementById('top-profit-products').innerHTML = topProfit.map(p => `<div class="p-2 bg-gray-50 rounded-md"><strong>${p.name}</strong>: ${formatCurrency(p.profit)}</div>`).join('') || '<p class="text-center text-gray-500">Không có dữ liệu.</p>';
+    
+        // --- NEW CHART LOGIC ---
+        if (productSalesTrendChart) productSalesTrendChart.destroy();
+        const chartContainer = document.getElementById('product-chart-container');
+
+        if (selectedProductIds.length > 0 && sales.length > 0) {
+            chartContainer.classList.remove('hidden');
+
+            const allDates = [...new Set(sales.map(s => s.date.split('T')[0]))].sort((a, b) => new Date(a) - new Date(b));
+
+            const datasets = selectedProductIds.map((productId, index) => {
+                const product = products.find(p => p.id === productId);
+                const salesForThisProduct = sales.filter(s => s.productId === productId);
+                
+                const revenueByDate = salesForThisProduct.reduce((acc, sale) => {
+                    const date = sale.date.split('T')[0];
+                    acc[date] = (acc[date] || 0) + sale.amount;
+                    return acc;
+                }, {});
+
+                const data = allDates.map(date => revenueByDate[date] || 0);
+                
+                const chartColors = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#eab308', '#06b6d4', '#d946ef'];
+                const color = chartColors[index % chartColors.length];
+
+                return {
+                    label: product ? product.name : 'Unknown',
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: `${color}20`,
+                    fill: true,
+                    tension: 0.1
+                };
+            });
+
+            if (productSalesTrendChartCtx) {
+                productSalesTrendChart = new Chart(productSalesTrendChartCtx, {
+                    type: 'line',
+                    data: {
+                        labels: allDates,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        } else {
+             chartContainer.classList.add('hidden');
+        }
     }
     
     function renderInventoryReport() {
