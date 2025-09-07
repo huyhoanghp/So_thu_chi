@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sổ Thu Chi Pro (Quản lý Bán hàng & AI)</title>
+    <!-- Link đến tệp manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Thêm màu sắc chủ đề cho trình duyệt trên mobile -->
+    <meta name="theme-color" content="#4f46e5">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -1916,6 +1921,17 @@ USER TEXT: "${textInput}"`;
     reportRangeEl.value = 'week';
     switchTab('products'); // Default to the new products tab
     handleFilterChange();
+
+    // Đăng ký Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then(registration => {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }, err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+    }
 });
 </script>
 </body>
