@@ -142,11 +142,12 @@
                         </div>
 
                         <div class="border-b border-gray-200 mb-4">
-                            <nav class="flex justify-around">
-                                <button id="tab-plan" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Kế Hoạch</button>
-                                <button id="tab-products" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Sản phẩm</button>
-                                <button id="tab-history" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Lịch Sử Giao Dịch</button>
-                                <button id="tab-dashboard" class="w-full text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">Báo cáo</button>
+                            <nav class="flex justify-around flex-wrap">
+                                <button id="tab-plan" class="w-1/2 sm:w-auto text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Kế Hoạch</button>
+                                <button id="tab-products" class="w-1/2 sm:w-auto text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Sản phẩm</button>
+                                <button id="tab-promotions" class="w-1/2 sm:w-auto text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Khuyến mại</button>
+                                <button id="tab-history" class="w-1/2 sm:w-auto text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 transition">Lịch Sử</button>
+                                <button id="tab-dashboard" class="w-full sm:w-auto text-center tab-button text-sm sm:text-lg font-semibold px-2 py-3 sm:px-4 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">Báo cáo</button>
                             </nav>
                         </div>
 
@@ -174,6 +175,18 @@
                                 <p id="product-empty-state" class="text-center text-gray-500 py-8">Chưa có sản phẩm nào.</p>
                             </div>
 
+                            <!-- TAB KHUYẾN MẠI -->
+                            <div id="content-promotions" class="hidden">
+                                <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-4">
+                                    <input type="search" id="search-promotions" placeholder="Tìm kiếm khuyến mại..." class="w-full md:w-1/2 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                    <button id="add-promotion-btn" class="w-full md:w-auto bg-pink-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-pink-700 transition">Tạo Khuyến Mại</button>
+                                </div>
+                                <div id="promotion-list-container" class="max-h-[500px] overflow-y-auto">
+                                    <ul id="promotion-list" class="space-y-3"></ul>
+                                </div>
+                                <p id="promotion-empty-state" class="text-center text-gray-500 py-8">Chưa có chương trình khuyến mại nào.</p>
+                            </div>
+
                             <!-- TAB LỊCH SỬ -->
                             <div id="content-history" class="hidden">
                                 <div class="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-4">
@@ -192,9 +205,10 @@
                             <div id="content-dashboard" class="hidden">
                                 <!-- Report Sub-tabs -->
                                 <div class="mb-4 border-b border-gray-200">
-                                    <nav class="flex -mb-px">
+                                    <nav class="flex -mb-px flex-wrap">
                                         <button data-report="overview" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Tổng quan</button>
                                         <button data-report="products" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Sản phẩm</button>
+                                        <button data-report="promotions" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Khuyến mại</button>
                                         <button data-report="inventory" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Tồn kho</button>
                                         <button data-report="ai_assistant" class="report-tab-button whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm">Trợ lý AI</button>
                                     </nav>
@@ -240,6 +254,12 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- Report Content: Promotions -->
+                                <div id="report-content-promotions" class="hidden space-y-4">
+                                    <div id="promotion-report-table" class="overflow-x-auto"></div>
+                                </div>
+
 
                                 <!-- Report Content: Inventory -->
                                 <div id="report-content-inventory" class="hidden space-y-4">
@@ -329,6 +349,10 @@
                                     <label for="transaction-quantity" class="block font-semibold mb-2 text-sm">Số lượng bán</label>
                                     <input type="number" id="transaction-quantity" value="1" min="1" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
+                            </div>
+                             <div id="promotion-section" class="hidden">
+                                <label for="promotion-select" class="block font-semibold mb-2 text-sm">Khuyến mại áp dụng</label>
+                                <select id="promotion-select" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
                             </div>
                         </div>
                         
@@ -422,6 +446,53 @@
                     </form>
                 </div>
             </div>
+            
+            <!-- Promotion Modal -->
+            <div id="promotion-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+                <div class="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-lg transform transition-transform duration-300 scale-95 max-h-[90vh] overflow-y-auto">
+                    <h2 id="promotion-modal-title" class="text-2xl font-bold mb-4">Tạo Khuyến Mại Mới</h2>
+                    <form id="promotion-form">
+                        <input type="hidden" id="editing-promotion-id">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="promotion-name" class="block font-semibold mb-2">Tên chương trình</label>
+                                <input type="text" id="promotion-name" placeholder="VD: Giảm giá cuối tuần" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="promotion-type" class="block font-semibold mb-2">Loại khuyến mại</label>
+                                    <select id="promotion-type" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+                                        <option value="percentage">Giảm theo %</option>
+                                        <option value="fixed">Giảm số tiền cố định</option>
+                                    </select>
+                                </div>
+                                <div>
+                                     <label for="promotion-value" class="block font-semibold mb-2">Giá trị</label>
+                                    <input type="number" id="promotion-value" placeholder="Nhập % hoặc số tiền" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="promotion-products" class="block font-semibold mb-2">Sản phẩm áp dụng</label>
+                                <select multiple id="promotion-products" class="w-full p-2 h-32 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" required></select>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <div>
+                                    <label for="promotion-start-date" class="block font-semibold mb-2">Ngày bắt đầu</label>
+                                    <input type="date" id="promotion-start-date" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                                </div>
+                                <div>
+                                     <label for="promotion-end-date" class="block font-semibold mb-2">Ngày kết thúc</label>
+                                    <input type="date" id="promotion-end-date" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" class="cancel-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition">Hủy</button>
+                            <button type="submit" class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700 transition">Lưu Khuyến Mại</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
 
             <div id="complete-plan-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
@@ -492,15 +563,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const planEmptyState = document.getElementById('plan-empty-state');
     const productList = document.getElementById('product-list');
     const productEmptyState = document.getElementById('product-empty-state');
+    const promotionList = document.getElementById('promotion-list');
+    const promotionEmptyState = document.getElementById('promotion-empty-state');
 
     const addPlanBtn = document.getElementById('add-plan-btn');
     const addTransactionBtn = document.getElementById('add-transaction-btn');
     const addProductBtn = document.getElementById('add-product-btn');
+    const addPromotionBtn = document.getElementById('add-promotion-btn');
     
     const exportXlsxBtn = document.getElementById('export-xlsx-btn');
     const searchPlanInput = document.getElementById('search-plan');
     const searchHistoryInput = document.getElementById('search-history');
     const searchProductsInput = document.getElementById('search-products');
+    const searchPromotionsInput = document.getElementById('search-promotions');
 
     // Modals
     const formModal = document.getElementById('form-modal');
@@ -516,16 +591,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const customerNameInput = document.getElementById('customerName');
     const customerNoteInput = document.getElementById('customerNote');
     
-    // Product Section in Transaction Form
+    // Product & Promotion Section in Transaction Form
     const productSection = document.getElementById('product-section');
     const productSelect = document.getElementById('product-select');
     const transactionQuantityInput = document.getElementById('transaction-quantity');
+    const promotionSection = document.getElementById('promotion-section');
+    const promotionSelect = document.getElementById('promotion-select');
     
     // Import Section in Transaction Form
     const importSection = document.getElementById('import-section');
     const importProductSelect = document.getElementById('import-product-select');
     const importQuantityInput = document.getElementById('import-quantity');
-
 
     // Product Modal
     const productModal = document.getElementById('product-modal');
@@ -537,6 +613,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const productSellingPriceInput = document.getElementById('product-selling-price');
     const productStockInput = document.getElementById('product-stock');
 
+    // Promotion Modal
+    const promotionModal = document.getElementById('promotion-modal');
+    const promotionModalTitle = document.getElementById('promotion-modal-title');
+    const promotionForm = document.getElementById('promotion-form');
+    const editingPromotionIdInput = document.getElementById('editing-promotion-id');
+    const promotionNameInput = document.getElementById('promotion-name');
+    const promotionTypeInput = document.getElementById('promotion-type');
+    const promotionValueInput = document.getElementById('promotion-value');
+    const promotionProductsSelect = document.getElementById('promotion-products');
+    const promotionStartDateInput = document.getElementById('promotion-start-date');
+    const promotionEndDateInput = document.getElementById('promotion-end-date');
 
     const completePlanModal = document.getElementById('complete-plan-modal');
     const completePlanForm = document.getElementById('complete-plan-form');
@@ -552,10 +639,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tabs
     const tabPlan = document.getElementById('tab-plan');
     const tabProducts = document.getElementById('tab-products');
+    const tabPromotions = document.getElementById('tab-promotions');
     const tabHistory = document.getElementById('tab-history');
     const tabDashboard = document.getElementById('tab-dashboard');
     const contentPlan = document.getElementById('content-plan');
     const contentProducts = document.getElementById('content-products');
+    const contentPromotions = document.getElementById('content-promotions');
     const contentHistory = document.getElementById('content-history');
     const contentDashboard = document.getElementById('content-dashboard');
 
@@ -590,8 +679,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const productSalesTrendChartCtx = document.getElementById('product-sales-trend-chart')?.getContext('2d');
 
     let auth, db, geminiApiKey;
-    let transactionsCollection, plansCollection, productsCollection;
-    let transactions = [], plans = [], products = [];
+    let transactionsCollection, plansCollection, productsCollection, promotionsCollection;
+    let transactions = [], plans = [], products = [], promotions = [];
     let currentUserId = null;
     let toastTimeout;
     let confirmAction = null;
@@ -643,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 transactionsCollection = db.collection(`${basePath}/transactions`);
                 plansCollection = db.collection(`${basePath}/plans`);
                 productsCollection = db.collection(`${basePath}/products`);
+                promotionsCollection = db.collection(`${basePath}/promotions`);
                 
                 loginScreen.classList.add('hidden');
                 appContainer.classList.remove('hidden');
@@ -650,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 listenForData();
             } else {
                 currentUserId = null;
-                transactions = []; plans = []; products = [];
+                transactions = []; plans = []; products = []; promotions = [];
                 renderAll();
                 appContainer.classList.add('hidden');
                 loginScreen.classList.remove('hidden');
@@ -669,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     logoutBtn.addEventListener('click', signOut);
 
     function listenForData() {
-        if (!transactionsCollection || !plansCollection || !productsCollection) return;
+        if (!transactionsCollection || !plansCollection || !productsCollection || !promotionsCollection) return;
         
         transactionsCollection.onSnapshot(snapshot => {
             transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
@@ -687,6 +777,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAll();
             populateProductReportFilter();
         }, err => showError("Không thể tải danh sách sản phẩm: " + err.message));
+        
+        promotionsCollection.onSnapshot(snapshot => {
+            promotions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderAll();
+        }, err => showError("Không thể tải danh sách khuyến mại: " + err.message));
     }
     
     function renderAll() {
@@ -694,11 +789,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchedPlans = filterData(plans, 'search', searchPlanInput.value);
         const searchedTransactions = filterData(transactions, 'search', searchHistoryInput.value);
         const searchedProducts = filterData(products, 'search', searchProductsInput.value);
+        const searchedPromotions = filterData(promotions, 'search', searchPromotionsInput.value);
         
         updateSummary(currentPeriodData);
         renderTransactionList(searchedTransactions);
         renderPlanList(searchedPlans);
         renderProductList(searchedProducts);
+        renderPromotionList(searchedPromotions);
 
         if(!contentDashboard.classList.contains('hidden')){
             renderReports();
@@ -719,6 +816,11 @@ document.addEventListener('DOMContentLoaded', () => {
         productList.innerHTML = '';
         productEmptyState.style.display = source.length === 0 ? 'block' : 'none';
         source.forEach(product => productList.appendChild(createProductElement(product)));
+    }
+    function renderPromotionList(source) {
+        promotionList.innerHTML = '';
+        promotionEmptyState.style.display = source.length === 0 ? 'block' : 'none';
+        source.forEach(promo => promotionList.appendChild(createPromotionElement(promo)));
     }
 
     function updateSummary(source) {
@@ -838,6 +940,37 @@ document.addEventListener('DOMContentLoaded', () => {
         item.querySelector('button[data-action="delete"]').addEventListener('click', () => deleteProduct(id, name));
         return item;
     }
+    function createPromotionElement(promo) {
+        const { id, name, type, value, startDate, endDate, productIds } = promo;
+        const item = document.createElement('li');
+        const today = new Date().toISOString().split('T')[0];
+        const isActive = today >= startDate && today <= endDate;
+        
+        item.className = `p-4 rounded-lg border-l-4 ${isActive ? 'bg-green-50 border-green-500' : 'bg-gray-100 border-gray-400'}`;
+        
+        let valueText = type === 'percentage' ? `${value}%` : `${formatCurrency(value)}`;
+        let productNames = productIds.map(pid => products.find(p => p.id === pid)?.name || 'Sản phẩm không rõ').join(', ');
+        
+        item.innerHTML = `
+            <div class="flex flex-col sm:flex-row justify-between items-start gap-3">
+                <div class="flex-grow">
+                    <p class="font-bold text-lg text-pink-800">${name} <span class="text-sm font-medium ${isActive ? 'text-green-600' : 'text-gray-500'}">(${isActive ? 'Đang hoạt động' : 'Không hoạt động'})</span></p>
+                    <div class="text-sm text-gray-600 mt-1">
+                        <p><strong>Giảm giá:</strong> ${valueText}</p>
+                        <p><strong>Sản phẩm:</strong> ${productNames}</p>
+                        <p><strong>Thời gian:</strong> ${startDate} đến ${endDate}</p>
+                    </div>
+                </div>
+                <div class="flex-shrink-0 flex items-center gap-2 w-full sm:w-auto">
+                    <button data-action="edit" class="w-1/2 sm:w-auto text-gray-500 hover:text-blue-600 transition p-2 rounded-lg hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                    <button data-action="delete" class="w-1/2 sm:w-auto text-gray-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-gray-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
+                </div>
+            </div>`;
+        
+        item.querySelector('button[data-action="edit"]').addEventListener('click', () => openPromotionModal('edit', promo));
+        item.querySelector('button[data-action="delete"]').addEventListener('click', () => deletePromotion(id, name));
+        return item;
+    }
     
     function openFormModal(mode, data = {}) {
         currentFormMode = mode;
@@ -923,6 +1056,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeProductModal() { productModal.classList.add('opacity-0'); setTimeout(() => productModal.classList.add('hidden'), 300); }
     
+    function openPromotionModal(mode, data = {}) {
+        promotionForm.reset();
+        
+        // Populate product options
+        promotionProductsSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+        if (mode === 'edit') {
+            promotionModalTitle.textContent = 'Chỉnh Sửa Khuyến Mại';
+            editingPromotionIdInput.value = data.id;
+            promotionNameInput.value = data.name;
+            promotionTypeInput.value = data.type;
+            promotionValueInput.value = data.value;
+            promotionStartDateInput.value = data.startDate;
+            promotionEndDateInput.value = data.endDate;
+            // Select products
+            data.productIds.forEach(pid => {
+                const option = promotionProductsSelect.querySelector(`option[value="${pid}"]`);
+                if (option) option.selected = true;
+            });
+        } else {
+            promotionModalTitle.textContent = 'Tạo Khuyến Mại Mới';
+            editingPromotionIdInput.value = '';
+        }
+        promotionModal.classList.remove('hidden');
+        setTimeout(() => promotionModal.classList.remove('opacity-0'), 10);
+    }
+    function closePromotionModal() { 
+        promotionModal.classList.add('opacity-0'); 
+        setTimeout(() => promotionModal.classList.add('hidden'), 300); 
+    }
+
     async function handleProductFormSubmit(e) {
         e.preventDefault();
         const data = {
@@ -961,6 +1125,47 @@ document.addEventListener('DOMContentLoaded', () => {
             saveProduct();
         }
     }
+    
+    async function handlePromotionFormSubmit(e) {
+        e.preventDefault();
+        const editingId = editingPromotionIdInput.value;
+
+        const selectedProductIds = [...promotionProductsSelect.selectedOptions].map(opt => opt.value);
+
+        if (selectedProductIds.length === 0) {
+            return showToast("Vui lòng chọn ít nhất một sản phẩm để áp dụng.", "error");
+        }
+
+        const data = {
+            name: promotionNameInput.value.trim(),
+            type: promotionTypeInput.value,
+            value: +promotionValueInput.value,
+            productIds: selectedProductIds,
+            startDate: promotionStartDateInput.value,
+            endDate: promotionEndDateInput.value,
+        };
+
+        if (!data.name || !data.value || !data.startDate || !data.endDate) {
+            return showToast("Vui lòng điền đầy đủ các trường thông tin bắt buộc.", "error");
+        }
+
+        if (data.endDate < data.startDate) {
+            return showToast("Ngày kết thúc không được trước ngày bắt đầu.", "error");
+        }
+
+        try {
+            if (editingId) {
+                await promotionsCollection.doc(editingId).update(data);
+                showToast("Đã cập nhật khuyến mại!");
+            } else {
+                await promotionsCollection.add(data);
+                showToast("Đã tạo khuyến mại thành công!");
+            }
+            closePromotionModal();
+        } catch (err) {
+            showToast(`Lỗi: ${err.message}`, "error");
+        }
+    }
 
 
     async function handleFormSubmit(e) {
@@ -970,10 +1175,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let productId = null;
         let quantity = null;
+        let promotionId = null;
+        let discountAmount = 0;
 
         if (type === 'income' && productSelect.value) {
             productId = productSelect.value;
             quantity = +transactionQuantityInput.value;
+            promotionId = promotionSelect.value;
+
+            if (promotionId) {
+                const product = products.find(p => p.id === productId);
+                const promotion = promotions.find(p => p.id === promotionId);
+                if(product && promotion) {
+                    const originalPrice = product.sellingPrice * quantity;
+                    if(promotion.type === 'percentage') {
+                        discountAmount = originalPrice * (promotion.value / 100);
+                    } else {
+                        discountAmount = promotion.value * quantity;
+                    }
+                }
+            }
         } else if (type === 'expense' && category === 'Nhập hàng' && importProductSelect.value) {
             productId = importProductSelect.value;
             quantity = +importQuantityInput.value;
@@ -989,7 +1210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             customerNote: customerNoteInput.value.trim(), 
             createdAt: new Date().toISOString(),
             productId: productId,
-            quantity: quantity
+            quantity: quantity,
+            promotionId: promotionId,
+            discountAmount: discountAmount
         };
 
         if (!data.description || data.amount < 0) { return showToast("Vui lòng nhập nội dung và số tiền hợp lệ.", "error"); }
@@ -1082,6 +1305,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     await productsCollection.doc(tx.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
                 }
                 showToast("Đã xóa giao dịch."); 
+            } catch(e) { 
+                showToast('Lỗi: '+e.message, "error"); 
+            } 
+        }); 
+    };
+    const deletePromotion = (id, name) => { 
+        openConfirmationModal(`Bạn có chắc muốn xóa khuyến mại "${name}"?`, async () => { 
+            try { 
+                await promotionsCollection.doc(id).delete(); 
+                showToast("Đã xóa khuyến mại."); 
             } catch(e) { 
                 showToast('Lỗi: '+e.message, "error"); 
             } 
@@ -1276,11 +1509,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchTab(tab) {
-        [contentPlan, contentProducts, contentHistory, contentDashboard].forEach(c => c.classList.add('hidden'));
-        [tabPlan, tabProducts, tabHistory, tabDashboard].forEach(t => t.classList.remove('active'));
+        [contentPlan, contentProducts, contentHistory, contentDashboard, contentPromotions].forEach(c => c.classList.add('hidden'));
+        [tabPlan, tabProducts, tabHistory, tabDashboard, tabPromotions].forEach(t => t.classList.remove('active'));
         
         if (tab === 'plan') { contentPlan.classList.remove('hidden'); tabPlan.classList.add('active'); } 
         else if (tab === 'products') { contentProducts.classList.remove('hidden'); tabProducts.classList.add('active'); } 
+        else if (tab === 'promotions') { contentPromotions.classList.remove('hidden'); tabPromotions.classList.add('active'); } 
         else if (tab === 'history') { contentHistory.classList.remove('hidden'); tabHistory.classList.add('active'); } 
         else {
             contentDashboard.classList.remove('hidden');
@@ -1863,6 +2097,8 @@ USER TEXT: "${textInput}"`;
     addPlanBtn.addEventListener('click', () => openFormModal('addPlan'));
     addTransactionBtn.addEventListener('click', () => openFormModal('addTransaction'));
     addProductBtn.addEventListener('click', () => openProductModal('add'));
+    addPromotionBtn.addEventListener('click', () => openPromotionModal('add'));
+
     
     addAiBtn.addEventListener('click', openAiEntryModal);
     aiEntryModal.querySelector('.cancel-btn').addEventListener('click', closeAiEntryModal);
@@ -1870,11 +2106,13 @@ USER TEXT: "${textInput}"`;
     
     mainForm.addEventListener('submit', handleFormSubmit);
     productForm.addEventListener('submit', handleProductFormSubmit);
+    promotionForm.addEventListener('submit', handlePromotionFormSubmit);
     
     completePlanForm.addEventListener('submit', handleCompletePlanSubmit);
     
     formModal.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', closeFormModal));
     productModal.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', closeProductModal));
+    promotionModal.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', closePromotionModal));
     completePlanModal.querySelectorAll('.cancel-btn').forEach(btn => btn.addEventListener('click', closeCompletePlanModal));
     
     confirmCancelBtn.addEventListener('click', closeConfirmationModal);
@@ -1885,6 +2123,7 @@ USER TEXT: "${textInput}"`;
 
     tabPlan.addEventListener('click', () => switchTab('plan'));
     tabProducts.addEventListener('click', () => switchTab('products'));
+    tabPromotions.addEventListener('click', () => switchTab('promotions'));
     tabHistory.addEventListener('click', () => switchTab('history'));
     tabDashboard.addEventListener('click', () => switchTab('dashboard'));
     
@@ -1894,6 +2133,7 @@ USER TEXT: "${textInput}"`;
     searchPlanInput.addEventListener('input', renderAll);
     searchHistoryInput.addEventListener('input', renderAll);
     searchProductsInput.addEventListener('input', renderAll);
+    searchPromotionsInput.addEventListener('input', renderAll);
     exportXlsxBtn.addEventListener('click', exportToXLSX); 
     chatForm.addEventListener('submit', handleAiChatSubmit);
     
@@ -1901,6 +2141,8 @@ USER TEXT: "${textInput}"`;
     transactionQuantityInput.addEventListener('input', handleQuantityChange);
     importProductSelect.addEventListener('change', () => handleImportProductSelection(false));
     importQuantityInput.addEventListener('input', handleImportQuantityChange);
+    promotionSelect.addEventListener('change', handleQuantityChange);
+
     document.getElementById('low-stock-threshold').addEventListener('input', renderInventoryReport);
     document.querySelectorAll('.report-tab-button').forEach(button => {
         button.addEventListener('click', (e) => switchReportTab(e.target.dataset.report));
