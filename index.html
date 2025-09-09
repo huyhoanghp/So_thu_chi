@@ -275,7 +275,7 @@
                                 <!-- Report Content: Products -->
                                 <div id="report-content-products" class="hidden space-y-6">
                                      <div>
-                                        <label for="product-report-filter" class="block text-sm font-medium text-gray-700 mb-1">Lọc theo sản phẩm (chọn một hoặc nhiều):</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Lọc theo sản phẩm (chọn một hoặc nhiều):</label>
                                         <div id="product-report-filter-container" class="max-h-40 overflow-y-auto border rounded-lg p-2 bg-white">
                                             <!-- Product checkboxes for report will be rendered here -->
                                         </div>
@@ -493,9 +493,9 @@
                         <div>
                             <label for="promoType" class="block text-sm font-medium text-gray-700">Loại khuyến mại</label>
                             <select id="promoType" class="mt-1 block w-full p-2 border rounded-md">
-                                <option value="percentage">Giảm theo %</option>
-                                <option value="fixed">Giảm theo số tiền</option>
-                                <option value="bogo">Mua X tặng 1 sản phẩm</option>
+                                <option value="percentage">Giảm theo % trên sản phẩm</option>
+                                <option value="fixed">Giảm theo số tiền trên sản phẩm</option>
+                                <option value="bogo">Mua X tặng Y sản phẩm</option>
                                 <option value="total_bill_fixed">Giảm tiền trên tổng hóa đơn</option>
                                 <option value="total_bill_percentage">Giảm % trên tổng hóa đơn</option>
                             </select>
@@ -507,8 +507,16 @@
                         </div>
                         
                         <div id="promoBuyQuantityContainer" class="hidden">
-                             <label for="promoBuyQuantity" class="block text-sm font-medium text-gray-700">Số lượng sản phẩm cần mua (X)</label>
-                             <input type="number" id="promoBuyQuantity" class="mt-1 block w-full p-2 border rounded-md" value="1">
+                             <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="promoBuyQuantity" class="block text-sm font-medium text-gray-700">Số lượng mua (X)</label>
+                                    <input type="number" id="promoBuyQuantity" class="mt-1 block w-full p-2 border rounded-md" value="1" min="1">
+                                </div>
+                                <div>
+                                    <label for="promoGetQuantity" class="block text-sm font-medium text-gray-700">Số lượng tặng (Y)</label>
+                                    <input type="number" id="promoGetQuantity" class="mt-1 block w-full p-2 border rounded-md" value="1" min="1">
+                                </div>
+                            </div>
                         </div>
 
                         <div id="promoProductContainer">
@@ -525,9 +533,15 @@
                              <input type="number" id="promoMinSpend" class="mt-1 block w-full p-2 border rounded-md" value="0">
                         </div>
 
-                        <div>
-                            <label for="promoEndDate" class="block text-sm font-medium text-gray-700">Ngày kết thúc</label>
-                            <input type="date" id="promoEndDate" class="mt-1 block w-full p-2 border rounded-md" required>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div>
+                                <label for="promoStartDate" class="block text-sm font-medium text-gray-700">Ngày bắt đầu</label>
+                                <input type="date" id="promoStartDate" class="mt-1 block w-full p-2 border rounded-md" required>
+                            </div>
+                            <div>
+                                <label for="promoEndDate" class="block text-sm font-medium text-gray-700">Ngày kết thúc</label>
+                                <input type="date" id="promoEndDate" class="mt-1 block w-full p-2 border rounded-md" required>
+                            </div>
                         </div>
 
                         <div class="flex justify-end gap-2">
@@ -947,8 +961,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return item;
     }
     function createTransactionElement(tx) {
-        const { id, type, description, amount, date, category, customerName, customerNote, createdAt } = tx;
+        const { id, type, description, amount, date, category, customerName, customerNote, createdAt, items } = tx;
         const isIncome = type === 'income';
+        const isMultiItemSale = Array.isArray(items) && items.length > 0;
+
         const item = document.createElement('li');
         item.className = `p-4 rounded-lg border-l-4 ${isIncome ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`;
         const displayDateTimeStr = formatDisplayDateTime(createdAt, date);
@@ -959,6 +975,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${customerNote ? `<p><strong>Ghi chú:</strong> ${customerNote}</p>` : ''}
             </div>`;
         }
+
+        const editButton = `<button data-action="edit" class="text-gray-500 hover:text-blue-600 transition p-1 ${isMultiItemSale ? 'opacity-50 cursor-not-allowed' : ''}" ${isMultiItemSale ? 'disabled title="Không thể sửa hóa đơn nhiều sản phẩm"' : ''}><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>`;
+
         item.innerHTML = `<div class="flex justify-between items-start">
                 <div class="flex-grow flex flex-col">
                     <div>
@@ -971,12 +990,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="text-right flex-shrink-0 ml-4">
                     <p class="font-bold text-xl ${isIncome ? 'text-green-600' : 'text-red-600'}">${isIncome ? '+' : '-'}${formatCurrency(amount)}</p>
                     <div class="flex gap-2 justify-end mt-1">
-                        <button data-action="edit" class="text-gray-500 hover:text-blue-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>
+                        ${editButton}
                         <button data-action="delete" class="text-gray-500 hover:text-red-600 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
                     </div>
                 </div>
             </div>`;
-        item.querySelector('button[data-action="edit"]').addEventListener('click', () => openFormModal('editTransaction', tx));
+        const editBtnEl = item.querySelector('button[data-action="edit"]');
+        if (editBtnEl && !editBtnEl.disabled) {
+            editBtnEl.addEventListener('click', () => openFormModal('editTransaction', tx));
+        }
         item.querySelector('button[data-action="delete"]').addEventListener('click', () => deleteTransaction(tx));
         return item;
     }
@@ -1143,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let productId = null;
         let quantity = null;
+        let items = null; // Important for edit logic
 
         if (type === 'income' && productSelect.value) {
             productId = productSelect.value;
@@ -1162,7 +1185,8 @@ document.addEventListener('DOMContentLoaded', () => {
             customerNote: customerNoteInput.value.trim(), 
             createdAt: new Date().toISOString(),
             productId: productId,
-            quantity: quantity
+            quantity: quantity,
+            items: items // Will be null for single item tx
         };
 
         if (!data.description || data.amount < 0) { return showToast("Vui lòng nhập nội dung và số tiền hợp lệ.", "error"); }
@@ -1185,12 +1209,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast("Đã cập nhật kế hoạch!");
                 } else if (currentFormMode === 'editTransaction') {
                     const beforeTx = currentEditingTransaction;
+                    // Prevent editing multi-item sales
+                    if(beforeTx && Array.isArray(beforeTx.items) && beforeTx.items.length > 0) {
+                        showToast("Không thể sửa hóa đơn nhiều sản phẩm từ đây.", "error");
+                        return;
+                    }
+
                     const afterTxData = data;
                     const txDocRef = transactionsCollection.doc(editingIdInput.value);
 
                     const oldProductId = beforeTx ? beforeTx.productId : null;
                     const oldQuantity = beforeTx ? beforeTx.quantity || 0 : 0;
                     const oldType = beforeTx ? beforeTx.type : null;
+                    
                     const newProductId = afterTxData.productId;
                     const newQuantity = afterTxData.quantity || 0;
                     const newType = afterTxData.type;
@@ -1246,17 +1277,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }); 
     };
     const deletePlan = (id, description) => { openConfirmationModal(`Bạn có chắc muốn xóa kế hoạch "${description}"?`, async () => { try { await plansCollection.doc(id).delete(); showToast("Đã xóa kế hoạch."); } catch(e) { showToast('Lỗi: '+e.message, "error"); } }); };
+    
     const deleteTransaction = (tx) => { 
         openConfirmationModal(`Bạn có chắc muốn xóa giao dịch "${tx.description}"?`, async () => { 
+            const batch = db.batch();
+            const txRef = transactionsCollection.doc(tx.id);
+            batch.delete(txRef);
+            
+            // Handle stock update for multi-item sales or single-item transactions
+            if (Array.isArray(tx.items) && tx.items.length > 0) {
+                 tx.items.forEach(item => {
+                    const productRef = productsCollection.doc(item.id);
+                    batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(item.quantity) });
+                });
+            } else if (tx.productId && tx.quantity > 0) {
+                const stockChange = tx.type === 'income' ? tx.quantity : -tx.quantity;
+                const productRef = productsCollection.doc(tx.productId);
+                batch.update(productRef, { stock: firebase.firestore.FieldValue.increment(stockChange) });
+            }
+
             try { 
-                await transactionsCollection.doc(tx.id).delete();
-                if (tx.productId && tx.quantity > 0) {
-                    const stockChange = tx.type === 'income' ? tx.quantity : -tx.quantity;
-                    await productsCollection.doc(tx.productId).update({ stock: firebase.firestore.FieldValue.increment(stockChange) });
-                }
-                showToast("Đã xóa giao dịch."); 
+                await batch.commit();
+                showToast("Đã xóa giao dịch và cập nhật lại kho hàng."); 
             } catch(e) { 
-                showToast('Lỗi: '+e.message, "error"); 
+                showToast('Lỗi khi xóa: '+e.message, "error"); 
             } 
         }); 
     };
@@ -1645,27 +1689,37 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderProductPerformanceReports(source) {
         const selectedProductIds = [...document.querySelectorAll('.report-product-checkbox:checked')].map(opt => opt.value);
 
-        let sales = source.filter(tx => tx.type === 'income' && tx.productId && tx.quantity > 0);
+        let sales = source.filter(tx => tx.type === 'income' && (tx.productId || (Array.isArray(tx.items) && tx.items.length > 0)) );
+
+        const allSalesItems = [];
+        sales.forEach(tx => {
+            if (Array.isArray(tx.items)) {
+                tx.items.forEach(item => allSalesItems.push({ ...item, amount: item.price * item.quantity, productId: item.id, date: tx.date }));
+            } else if (tx.productId) {
+                allSalesItems.push(tx);
+            }
+        });
         
-        let filteredSales = sales;
+        let filteredSalesItems = allSalesItems;
         if (selectedProductIds.length > 0) {
-            filteredSales = sales.filter(tx => selectedProductIds.includes(tx.productId));
+            filteredSalesItems = allSalesItems.filter(item => selectedProductIds.includes(item.productId));
         }
 
         const productStats = {};
 
-        sales.forEach(sale => { // Calculate stats from ALL sales in period for top 5
-            if (!productStats[sale.productId]) {
-                const productInfo = products.find(p => p.id === sale.productId);
-                productStats[sale.productId] = {
+        allSalesItems.forEach(sale => { // Calculate stats from ALL sales in period for top 5
+             const productId = sale.productId || sale.id;
+             if (!productStats[productId]) {
+                const productInfo = products.find(p => p.id === productId);
+                productStats[productId] = {
                     name: productInfo ? productInfo.name : 'Sản phẩm không xác định',
                     costPrice: productInfo ? productInfo.costPrice : 0,
                     quantity: 0,
                     totalRevenue: 0,
                 };
             }
-            productStats[sale.productId].quantity += sale.quantity;
-            productStats[sale.productId].totalRevenue += sale.amount;
+            productStats[productId].quantity += sale.quantity;
+            productStats[productId].totalRevenue += sale.amount;
         });
 
         const statsArray = Object.values(productStats).map(p => ({
@@ -1685,14 +1739,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (productSalesTrendChart) productSalesTrendChart.destroy();
         const chartContainer = document.getElementById('product-chart-container');
 
-        if (selectedProductIds.length > 0 && filteredSales.length > 0) {
+        if (selectedProductIds.length > 0 && filteredSalesItems.length > 0) {
             chartContainer.classList.remove('hidden');
 
-            const allDates = [...new Set(filteredSales.map(s => s.date.split('T')[0]))].sort((a, b) => new Date(a) - new Date(b));
+            const allDates = [...new Set(filteredSalesItems.map(s => s.date.split('T')[0]))].sort((a, b) => new Date(a) - new Date(b));
 
             const datasets = selectedProductIds.map((productId, index) => {
                 const product = products.find(p => p.id === productId);
-                const salesForThisProduct = filteredSales.filter(s => s.productId === productId);
+                const salesForThisProduct = filteredSalesItems.filter(s => (s.productId || s.id) === productId);
                 
                 const revenueByDate = salesForThisProduct.reduce((acc, sale) => {
                     const date = sale.date.split('T')[0];
@@ -2023,14 +2077,19 @@ USER TEXT: "${textInput}"`;
         promotionForm.reset();
         document.getElementById('promoId').value = mode === 'edit' ? data.id : '';
         promotionModalTitle.textContent = mode === 'add' ? 'Tạo khuyến mại mới' : 'Chỉnh sửa khuyến mại';
+        const today = new Date().toISOString().split('T')[0];
         
         if (mode === 'edit') {
             document.getElementById('promoNameInput').value = data.name;
             document.getElementById('promoType').value = data.type;
             document.getElementById('promoValue').value = data.value;
             document.getElementById('promoBuyQuantity').value = data.buyQuantity || 1;
+            document.getElementById('promoGetQuantity').value = data.getQuantity || 1;
             document.getElementById('promoMinSpend').value = data.minSpend || 0;
+            document.getElementById('promoStartDate').value = data.startDate || today;
             document.getElementById('promoEndDate').value = data.endDate;
+        } else {
+            document.getElementById('promoStartDate').value = today;
         }
 
         renderProductCheckboxList('promo-product-list', data.productIds || []);
@@ -2051,13 +2110,16 @@ USER TEXT: "${textInput}"`;
             type: document.getElementById('promoType').value,
             value: parseFloat(document.getElementById('promoValue').value) || 0,
             buyQuantity: parseInt(document.getElementById('promoBuyQuantity').value) || 1,
+            getQuantity: parseInt(document.getElementById('promoGetQuantity').value) || 1,
             minSpend: parseFloat(document.getElementById('promoMinSpend').value) || 0,
             productIds: selectedProductIds,
+            startDate: document.getElementById('promoStartDate').value,
             endDate: document.getElementById('promoEndDate').value,
             isActive: true 
         };
         
-        if (!data.name || !data.endDate) { return showToast("Vui lòng nhập tên và ngày kết thúc.", "error"); }
+        if (!data.name || !data.endDate || !data.startDate) { return showToast("Vui lòng nhập đủ tên, ngày bắt đầu và kết thúc.", "error"); }
+        if (new Date(data.endDate) < new Date(data.startDate)) { return showToast("Ngày kết thúc không thể trước ngày bắt đầu.", "error");}
         
         try {
             if (id) {
@@ -2081,16 +2143,40 @@ USER TEXT: "${textInput}"`;
 
         sortedPromotions.forEach(promo => {
             const li = document.createElement('li');
-            const isExpired = new Date(promo.endDate) < new Date();
-            li.className = `p-3 rounded-lg flex justify-between items-center border-l-4 ${isExpired ? 'bg-gray-200 border-gray-400' : 'bg-white border-blue-500 shadow-sm'}`;
+            const now = new Date();
+            const startDate = new Date(promo.startDate);
+            const endDate = new Date(promo.endDate);
+            endDate.setHours(23, 59, 59, 999); // Include the whole end day
+
+            let statusText = '';
+            let statusColor = '';
+
+            if (now < startDate) {
+                statusText = 'Sắp diễn ra';
+                statusColor = 'bg-blue-100 text-blue-800';
+            } else if (now > endDate) {
+                statusText = 'Đã kết thúc';
+                statusColor = 'bg-gray-200 text-gray-800';
+            } else {
+                statusText = 'Đang hoạt động';
+                statusColor = 'bg-green-100 text-green-800';
+            }
+            
+            const isActionable = now <= endDate;
+
+
+            li.className = `p-3 rounded-lg flex justify-between items-center border-l-4 ${isActionable && promo.isActive ? 'border-green-500' : 'border-gray-400'} ${now > endDate ? 'bg-gray-100' : 'bg-white shadow-sm'}`;
             li.innerHTML = `
                 <div>
-                    <div class="font-bold ${isExpired ? 'text-gray-500' : 'text-gray-800'}">${promo.name}</div>
-                    <p class="text-sm text-gray-600">${promo.type} - Hết hạn: ${new Date(promo.endDate).toLocaleDateString('vi-VN')}</p>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold ${!isActionable ? 'text-gray-500' : 'text-gray-800'}">${promo.name}</span>
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusColor}">${statusText}</span>
+                    </div>
+                    <p class="text-sm text-gray-600">Từ ${startDate.toLocaleDateString('vi-VN')} - đến ${endDate.toLocaleDateString('vi-VN')}</p>
                 </div>
                 <div class="flex items-center gap-4">
                      <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" data-action="toggle" class="sr-only peer" ${promo.isActive ? 'checked' : ''} ${isExpired ? 'disabled' : ''}>
+                      <input type="checkbox" data-action="toggle" class="sr-only peer" ${promo.isActive ? 'checked' : ''} ${!isActionable ? 'disabled' : ''}>
                       <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                     </label>
                     <div class="flex gap-1">
@@ -2100,10 +2186,15 @@ USER TEXT: "${textInput}"`;
                 </div>`;
             
             li.addEventListener('click', (e) => {
-                const action = e.target.closest('[data-action]')?.dataset.action;
+                const actionTarget = e.target.closest('[data-action]');
+                if (!actionTarget) return;
+
+                const action = actionTarget.dataset.action;
                 if (action === 'edit') { openPromotionModal('edit', promo); } 
                 else if (action === 'delete') { deletePromotion(promo.id, promo.name); } 
-                else if (action === 'toggle') { togglePromotionStatus(promo.id, e.target.checked); }
+                else if (action === 'toggle' && !actionTarget.disabled) { 
+                    togglePromotionStatus(promo.id, actionTarget.checked); 
+                }
             });
 
             promotionList.appendChild(li);
@@ -2207,7 +2298,14 @@ USER TEXT: "${textInput}"`;
     }
     
     function getApplicablePromotion(items, subtotal) {
-        const activePromos = promotions.filter(p => p.isActive && new Date(p.endDate) >= new Date());
+        const now = new Date();
+        const activePromos = promotions.filter(p => {
+            const startDate = new Date(p.startDate);
+            const endDate = new Date(p.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            return p.isActive && now >= startDate && now <= endDate;
+        });
+
         let bestPromo = null, maxDiscount = 0;
 
         activePromos.forEach(promo => {
@@ -2228,7 +2326,8 @@ USER TEXT: "${textInput}"`;
                      items.forEach(item => {
                         if (promo.productIds.includes(item.id) && item.quantity >= promo.buyQuantity) {
                             applies = true;
-                            const freeItems = Math.floor(item.quantity / promo.buyQuantity);
+                            const triggerCount = Math.floor(item.quantity / promo.buyQuantity);
+                            const freeItems = triggerCount * promo.getQuantity;
                             currentDiscount += freeItems * item.sellingPrice;
                         }
                     });
@@ -2261,6 +2360,7 @@ USER TEXT: "${textInput}"`;
     }
 
     async function handleCompleteSale() {
+        if (currentTransactionItems.length === 0) return;
         const subtotal = currentTransactionItems.reduce((acc, item) => acc + (item.sellingPrice * item.quantity), 0);
         const { promotion, discount } = getApplicablePromotion(currentTransactionItems, subtotal);
         const total = subtotal - discount;
@@ -2385,7 +2485,6 @@ USER TEXT: "${textInput}"`;
     document.querySelectorAll('.report-tab-button').forEach(button => {
         button.addEventListener('click', (e) => switchReportTab(e.target.dataset.report));
     });
-    // productReportFilter.addEventListener('change', renderReports);
 
     const fabToggle = () => {
         fabActions.classList.toggle('opacity-0');
@@ -2416,3 +2515,11 @@ USER TEXT: "${textInput}"`;
 </script>
 </body>
 </html>
+```
+
+### Tóm tắt các thay đổi chính:
+
+1.  **Cập nhật hệ thống Khuyến mại:**
+    * **Đổi tên:** "Giảm theo %" và "Giảm theo số tiền" đã được đổi tên để rõ ràng hơn là áp dụng trên sản phẩm.
+    * **Nâng cấp Mua X Tặng Y:** Chương trình "Mua X tặng 1" đã được sửa lỗi không lưu và nâng cấp thành **"Mua X tặng Y"**, cho phép bạn nhập linh hoạt cả số lượng mua và
+
